@@ -28,7 +28,7 @@ Ensure you have all source files in your project directory:
 a1314_daemon/
 ├── Cargo.toml
 ├── A1314_mapping.txt
-├── RottenApple_1.ico
+├── RottenApple.ico
 └── src/
     ├── main.rs
     ├── hid_parser.rs
@@ -144,7 +144,7 @@ Create a deployment package with these files:
 A1314_Daemon_v0.2.0/
 ├── a1314_daemon.exe        (from target/release/)
 ├── A1314_mapping.txt       (default config)
-├── RottenApple_1.ico       (system tray icon)
+├── RottenApple.ico       (system tray icon)
 ├── README.md               (documentation)
 ├── INSTALLATION.md         (setup guide)
 └── CHANGELOG.md            (version history)
@@ -170,7 +170,7 @@ New-Item -ItemType Directory -Path "A1314_Daemon_v0.2.0"
 # Copy files
 Copy-Item target\release\a1314_daemon.exe A1314_Daemon_v0.2.0\
 Copy-Item A1314_mapping.txt A1314_Daemon_v0.2.0\
-Copy-Item RottenApple_1.ico A1314_Daemon_v0.2.0\
+Copy-Item RottenApple.ico A1314_Daemon_v0.2.0\
 Copy-Item README.md A1314_Daemon_v0.2.0\
 Copy-Item INSTALLATION.md A1314_Daemon_v0.2.0\
 Copy-Item CHANGELOG.md A1314_Daemon_v0.2.0\
@@ -272,7 +272,7 @@ Copy-Item A1314_Daemon_v0.2.0\* "C:\Program Files\A1314Daemon\"
    ```
 4. **Copy new icon (if updated):**
    ```bash
-   copy /Y new_version\RottenApple_1.ico .
+   copy /Y new_version\RottenApple.ico .
    ```
 5. **Start new version:**
    ```bash
@@ -368,7 +368,7 @@ cargo build --release
 **Cause:** Icon file not found
 
 **Solution:**
-- Ensure `RottenApple_1.ico` is in project root
+- Ensure `RottenApple.ico` is in project root
 - Check file name matches exactly (case-sensitive on some systems)
 
 ### Issue: Registry access denied

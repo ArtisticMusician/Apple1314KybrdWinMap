@@ -5,7 +5,7 @@
 All files should be in the same directory:
 - `a1314_daemon.exe` (the compiled binary)
 - `A1314_mapping.txt` (will be created automatically if missing)
-- `RottenApple_1.ico` (optional - for system tray icon)
+- `RottenApple.ico` (optional - for system tray icon)
 
 ## 🚀 Installation Steps
 
@@ -23,7 +23,7 @@ All files should be in the same directory:
    
    # Copy files
    copy target\release\a1314_daemon.exe "C:\Program Files\A1314Daemon\"
-   copy RottenApple_1.ico "C:\Program Files\A1314Daemon\"
+   copy RottenApple.ico "C:\Program Files\A1314Daemon\"
    copy A1314_mapping.txt "C:\Program Files\A1314Daemon\"  # Optional
    ```
 
@@ -127,7 +127,7 @@ $env:RUST_LOG="debug"
 - Or install to user directory (e.g., `%LOCALAPPDATA%\A1314Daemon`)
 
 ### System tray icon not appearing
-- Ensure `RottenApple_1.ico` is in the same directory as the executable
+- Ensure `RottenApple.ico` is in the same directory as the executable
 - Check Windows notification area settings (taskbar settings)
 - Try restarting the daemon
 
@@ -149,7 +149,7 @@ $env:RUST_LOG="debug"
 C:\Program Files\A1314Daemon\
 ├── a1314_daemon.exe
 ├── A1314_mapping.txt
-└── RottenApple_1.ico
+└── RottenApple.ico
 ```
 
 Or for user-level installation:
@@ -158,7 +158,7 @@ Or for user-level installation:
 %LOCALAPPDATA%\A1314Daemon\
 ├── a1314_daemon.exe
 ├── A1314_mapping.txt
-└── RottenApple_1.ico
+└── RottenApple.ico
 ```
 
 ## 🔒 Permissions

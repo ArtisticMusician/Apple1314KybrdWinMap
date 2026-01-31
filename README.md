@@ -39,7 +39,7 @@ cargo build --release
 Copy these files to a permanent location (e.g., `C:\Program Files\A1314Daemon`):
 - `target\release\a1314_daemon.exe`
 - `A1314_mapping.txt` (optional - will be created automatically)
-- `RottenApple_1.ico` (optional - for system tray icon)
+- `RottenApple.ico` (optional - for system tray icon)
 
 ### 3. Install
 
@@ -304,7 +304,7 @@ When multiple modifiers are pressed, the daemon uses this priority order:
 - Verify file permissions allow reading
 
 ### System tray icon not appearing:
-- Ensure `RottenApple_1.ico` is in the same directory as the executable
+- Ensure `RottenApple.ico` is in the same directory as the executable
 - Check Windows notification area settings
 - Try restarting the daemon
 - Check logs for tray creation errors

@@ -26,4 +26,4 @@ tray-icon = "0.14"
 
 # Embed the icon file at compile time
 [package.metadata]
-icon = "RottenApple_1.ico"
+icon = "RottenApple.ico"

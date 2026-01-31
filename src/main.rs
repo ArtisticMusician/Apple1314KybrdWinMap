@@ -210,7 +210,7 @@ fn handle_file_watch_events(rx: Receiver<()>, hwnd: HWND) {
 
 fn create_system_tray(exe_dir: &std::path::Path) -> Result<(), String> {
     // Load icon from file
-    let icon_path = exe_dir.join("RottenApple_1.ico");
+    let icon_path = exe_dir.join("RottenApple.ico");
     let icon = if icon_path.exists() {
         Icon::from_path(&icon_path, Some((32, 32)))
             .map_err(|e| format!("Failed to load icon: {}", e))?
