@@ -9,7 +9,8 @@ mod tests {
     
     // Helper function to create a temporary test directory
     fn setup_test_dir() -> PathBuf {
-        let test_dir = std::env::temp_dir().join(format!("a1314_test_{}", std::process::id()));
+        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+        let test_dir = std::env::temp_dir().join(format!("a1314_test_{}_{}", std::process::id(), now));
         fs::create_dir_all(&test_dir).unwrap();
         test_dir
     }
@@ -69,7 +70,6 @@ EJECT+FN+KEY_1 = RUN("notepad.exe")
             .iter()
             .map(|l| l.trim())
             .filter(|l| !l.is_empty() && !l.starts_with('#'))
-            .copied()
             .collect();
         
         assert_eq!(valid_lines.len(), 6);
@@ -417,7 +417,6 @@ KEY_F = F # This is a comment
             .iter()
             .map(|l| l.trim())
             .filter(|l| !l.is_empty() && !l.starts_with('#'))
-            .copied()
             .collect();
         
         assert_eq!(valid_lines.len(), 2);
