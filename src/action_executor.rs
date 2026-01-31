@@ -1,6 +1,6 @@
 // --- START OF FILE src/action_executor.rs ---
 use windows::core::PWSTR;
-use windows::Win32::Foundation::CloseHandle;
+use windows::Win32::Foundation::{CloseHandle, WPARAM, LPARAM};
 use windows::Win32::System::Threading::{
     CreateProcessW, PROCESS_INFORMATION, STARTUPINFOW,
 };
@@ -218,12 +218,12 @@ unsafe fn send_key(vk: VIRTUAL_KEY, is_up: bool) {
 fn send_app_command(app_cmd: u32) {
     unsafe {
         let hwnd_fg = GetForegroundWindow();
-        if hwnd_fg.0 != 0 {
+        if !hwnd_fg.is_invalid() {
             // WM_APPCOMMAND takes app command in HIWORD(lParam)
             // and the target device (keyboard/mouse) in LOWORD(lParam)
             // Here we indicate the command came from a keyboard (device=1)
             let lparam: isize = ((app_cmd as isize) << 16) | 1;
-            let result = PostMessageW(hwnd_fg, WM_APPCOMMAND, 0, lparam);
+            let result = PostMessageW(hwnd_fg, WM_APPCOMMAND, WPARAM(0), LPARAM(lparam));
             match result {
                 Ok(_) => {
                     log::info!("Sent APPCOMMAND {} to foreground window", app_cmd);

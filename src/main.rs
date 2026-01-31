@@ -32,6 +32,9 @@ use tray_icon::Icon;
 
 use key_mapper::KeyMapper;
 
+
+
+
 // Custom window messages
 const WM_RELOAD_CONFIG: u32 = WM_USER + 1;
 const WM_RESET_CONFIG: u32 = WM_USER + 2;
@@ -174,14 +177,15 @@ fn main() -> windows::core::Result<()> {
         log::info!("Daemon is now running. Use system tray icon to control.");
 
         // Start a thread to handle file watch events
-        let hwnd_for_thread = hwnd;
+        let hwnd_val = hwnd.0 as usize;
         std::thread::spawn(move || {
-            handle_file_watch_events(rx, hwnd_for_thread);
+            let hwnd = HWND(hwnd_val as *mut c_void);
+            handle_file_watch_events(rx, hwnd);
         });
 
         let mut msg = MSG::default();
         while GetMessageW(&mut msg, HWND(null_mut()), 0, 0).into() {
-            TranslateMessage(&msg);
+            let _ = TranslateMessage(&msg);
             DispatchMessageW(&msg);
         }
 
@@ -241,6 +245,11 @@ fn create_system_tray(exe_dir: &std::path::Path) -> Result<(), String> {
         .build()
         .map_err(|e| format!("Failed to build tray icon: {}", e))?;
 
+    // Pre-clone IDs for the thread to avoid capturing Send-hostile types
+    let reload_id = reload_item.id().clone();
+    let reset_id = reset_item.id().clone();
+    let exit_id = exit_item.id().clone();
+
     // Handle menu events
     std::thread::spawn(move || {
         loop {
@@ -248,11 +257,11 @@ fn create_system_tray(exe_dir: &std::path::Path) -> Result<(), String> {
                 MAIN_WINDOW.with(|wnd| {
                     if let Some(hwnd) = *wnd.borrow() {
                         unsafe {
-                            if event.id == reload_item.id() {
+                            if event.id == reload_id {
                                 let _ = PostMessageW(hwnd, WM_RELOAD_CONFIG, WPARAM(0), LPARAM(0));
-                            } else if event.id == reset_item.id() {
+                            } else if event.id == reset_id {
                                 let _ = PostMessageW(hwnd, WM_RESET_CONFIG, WPARAM(0), LPARAM(0));
-                            } else if event.id == exit_item.id() {
+                            } else if event.id == exit_id {
                                 let _ = PostMessageW(hwnd, WM_EXIT_APP, WPARAM(0), LPARAM(0));
                             }
                         }
@@ -455,7 +464,7 @@ fn install_service() -> windows::core::Result<()> {
         if result.is_err() {
             log::error!("Failed to open registry key: {:?}", result);
             println!("Failed to install. Run as administrator if needed.");
-            return result;
+            return result.ok();
         }
 
         let exe_path_str = exe_path.to_string_lossy();
@@ -469,11 +478,11 @@ fn install_service() -> windows::core::Result<()> {
             Some(&exe_path_wide.iter().flat_map(|&c| c.to_le_bytes()).collect::<Vec<u8>>()),
         );
 
-        RegCloseKey(hkey);
+        let _ = RegCloseKey(hkey);
 
         if result.is_ok() {
             log::info!("Successfully installed A1314 Daemon to start with Windows");
-            println!("✓ A1314 Daemon installed successfully!");
+            println!("âœ“ A1314 Daemon installed successfully!");
             println!("  The daemon will now start automatically when you log in.");
             println!("  To uninstall, run: {} --uninstall", exe_path.file_name().unwrap().to_string_lossy());
         } else {
@@ -481,7 +490,7 @@ fn install_service() -> windows::core::Result<()> {
             println!("Failed to install. Run as administrator if needed.");
         }
 
-        result
+        result.ok()
     }
 }
 
@@ -507,22 +516,22 @@ fn uninstall_service() -> windows::core::Result<()> {
         if result.is_err() {
             log::error!("Failed to open registry key: {:?}", result);
             println!("Failed to uninstall. The daemon may not be installed.");
-            return result;
+            return result.ok();
         }
 
         let result = RegDeleteValueW(hkey, &value_name);
-        RegCloseKey(hkey);
+        let _ = RegCloseKey(hkey);
 
         if result.is_ok() {
             log::info!("Successfully uninstalled A1314 Daemon from Windows startup");
-            println!("✓ A1314 Daemon uninstalled successfully!");
+            println!("âœ“ A1314 Daemon uninstalled successfully!");
             println!("  The daemon will no longer start automatically.");
         } else {
             log::error!("Failed to delete registry value: {:?}", result);
             println!("Failed to uninstall. The daemon may not be installed.");
         }
 
-        result
+        result.ok()
     }
 }
 
@@ -540,9 +549,9 @@ fn print_help() {
     println!("NORMAL OPERATION:");
     println!("  Run without arguments to start the daemon.");
     println!("  Use the system tray icon to:");
-    println!("    • Reload configuration");
-    println!("    • Reset to default configuration");
-    println!("    • Exit the daemon");
+    println!("    â€¢ Reload configuration");
+    println!("    â€¢ Reset to default configuration");
+    println!("    â€¢ Exit the daemon");
     println!();
     println!("CONFIGURATION:");
     println!("  Edit A1314_mapping.txt in the same directory as the executable.");

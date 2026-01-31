@@ -1,11 +1,10 @@
 // --- START OF FILE src/key_mapper.rs ---
-mod variable_maps; // Import the new module
-
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
 use crate::action_executor::{Action, execute_action};
+use crate::variable_maps::{STRING_TO_HID_KEY, STRING_TO_ACTION};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct HidKey {
@@ -111,7 +110,7 @@ impl KeyMapper {
             };
 
             // Lookup the HidKey from the hardcoded map
-            let hid_key = match variable_maps::STRING_TO_HID_KEY.get(key_name) {
+            let hid_key = match STRING_TO_HID_KEY.get(key_name) {
                 Some(key) => *key,
                 None => {
                     log::error!("Unknown key name at line {}: '{}'", line_no + 1, key_name);
@@ -152,7 +151,7 @@ impl KeyMapper {
             }
             else {
                 // For direct string actions like "MUTE", "WIN+TAB", look them up
-                match variable_maps::STRING_TO_ACTION.get(rhs_str.as_str()) {
+                match STRING_TO_ACTION.get(rhs_str.as_str()) {
                     Some(action) => action.clone(),
                     None => {
                         // Fallback to KeyCombo if not a recognized explicit action

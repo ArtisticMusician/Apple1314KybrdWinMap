@@ -194,8 +194,10 @@ mod key_mapper_tests {
     fn test_modifier_state_tracking() {
         let mut fn_down = false;
         let mut shift_down = false;
-        let mut eject_down = false;
+        let eject_down = false;
         
+        assert!(!fn_down && !shift_down && !eject_down);
+
         // Simulate Fn press
         fn_down = true;
         assert!(fn_down && !shift_down && !eject_down);
@@ -453,7 +455,8 @@ mod file_operations_tests {
     use std::path::PathBuf;
 
     fn setup_test_dir() -> PathBuf {
-        let test_dir = std::env::temp_dir().join(format!("a1314_test_{}", std::process::id()));
+        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+        let test_dir = std::env::temp_dir().join(format!("a1314_test_{}_{}", std::process::id(), now));
         fs::create_dir_all(&test_dir).unwrap();
         test_dir
     }
