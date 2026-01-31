@@ -247,4 +247,34 @@ impl KeyMapper {
             execute_action(action);
         }
     }
+
+    /// Tries to trigger a mapping and returns true if an action was executed (should suppress original key)
+    pub fn try_trigger_mapping(&mut self, usage_page: u16, usage: u16, value: i32) -> bool {
+        if value == 0 {
+            return false; // Only trigger and suppress on key-down
+        }
+
+        let key = HidKey { usage_page, usage };
+
+        // Determine map based on current modifiers
+        let action = if self.eject_down && self.fn_down {
+            self.maps.eject_fn_map.get(&key)
+        } else if self.eject_down {
+            self.maps.eject_map.get(&key)
+        } else if self.shift_down {
+            self.maps.shift_map.get(&key)
+        } else if self.fn_down {
+            self.maps.fn_map.get(&key)
+        } else {
+            self.maps.normal.get(&key)
+        };
+
+        if let Some(action) = action {
+            log::debug!("Triggered mapping for {:04X}:{:04X}, suppressing original", usage_page, usage);
+            execute_action(action);
+            true
+        } else {
+            false
+        }
+    }
 }

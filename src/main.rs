@@ -23,6 +23,8 @@ use windows::Win32::UI::WindowsAndMessaging::{
     RegisterClassW, TranslateMessage, CS_HREDRAW, CS_VREDRAW, CW_USEDEFAULT, MSG, WM_DESTROY,
     WM_INPUT, WNDCLASSW, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_OVERLAPPEDWINDOW,
     PostMessageW, WM_USER,
+    SetWindowsHookExW, CallNextHookEx, UnhookWindowsHookEx, WH_KEYBOARD_LL, KBDLLHOOKSTRUCT,
+    WM_KEYDOWN, WM_KEYUP, WM_SYSKEYDOWN, WM_SYSKEYUP,
 };
 
 use notify::{Watcher, RecommendedWatcher, RecursiveMode};
@@ -49,11 +51,16 @@ thread_local! {
     static GLOBAL_MAPPER: RefCell<Option<Rc<RefCell<KeyMapper>>>> = RefCell::new(None);
     static MAPPING_FILE_PATH: RefCell<Option<PathBuf>> = RefCell::new(None);
     static MAIN_WINDOW: RefCell<Option<HWND>> = RefCell::new(None);
+    static SUPPRESSED_KEYS: RefCell<std::collections::HashSet<u32>> = RefCell::new(std::collections::HashSet::new());
+    static H_HOOK: RefCell<Option<windows::Win32::UI::WindowsAndMessaging::HHOOK>> = RefCell::new(None);
 }
 
 fn main() -> windows::core::Result<()> {
-    // Initialize logging
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
+    // Fail-safe startup print
+    println!("--- A1314 Daemon DEBUG START (PID: {}) ---", std::process::id());
+
+    // Initialize logging - Force DEBUG level for troubleshooting
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("debug"))
         .format_timestamp(Some(env_logger::TimestampPrecision::Millis))
         .init();
 
@@ -118,6 +125,7 @@ fn main() -> windows::core::Result<()> {
         let hinstance = windows::Win32::System::LibraryLoader::GetModuleHandleW(None)?;
 
         let class_name = widestring("A1314DaemonClass");
+        let window_name = widestring("A1314Daemon"); // Bind to variable to avoid dangling pointer
         let wc = WNDCLASSW {
             style: CS_HREDRAW | CS_VREDRAW,
             lpfnWndProc: Some(wnd_proc),
@@ -131,7 +139,7 @@ fn main() -> windows::core::Result<()> {
         let hwnd = CreateWindowExW(
             WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE,
             PCWSTR(class_name.as_ptr()),
-            PCWSTR(widestring("A1314Daemon").as_ptr()),
+            PCWSTR(window_name.as_ptr()),
             WS_OVERLAPPEDWINDOW,
             CW_USEDEFAULT,
             CW_USEDEFAULT,
@@ -150,6 +158,11 @@ fn main() -> windows::core::Result<()> {
 
         register_raw_input(hwnd)?;
         log::info!("Raw input registered successfully");
+
+        // Install keyboard hook
+        let hook = SetWindowsHookExW(WH_KEYBOARD_LL, Some(keyboard_hook_proc), hinstance, 0)?;
+        H_HOOK.with(|h| *h.borrow_mut() = Some(hook));
+        log::info!("Low-level keyboard hook installed for key suppression");
 
         // Create system tray icon
         if let Err(e) = create_system_tray(&exe_dir) {
@@ -194,6 +207,17 @@ fn main() -> windows::core::Result<()> {
     }
 
     log::info!("Daemon shutting down");
+
+    // Cleanup hook
+    H_HOOK.with(|h| {
+        if let Some(hook) = *h.borrow() {
+            unsafe {
+                let _ = UnhookWindowsHookEx(hook);
+            }
+            log::info!("Low-level keyboard hook uninstalled");
+        }
+    });
+
     Ok(())
 }
 
@@ -339,6 +363,18 @@ unsafe fn register_raw_input(hwnd: HWND) -> windows::core::Result<()> {
             dwFlags: RAWINPUTDEVICE_FLAGS(RIDEV_INPUTSINK.0),
             hwndTarget: hwnd,
         },
+        RAWINPUTDEVICE {
+            usUsagePage: 0xFF00,
+            usUsage: 0x03, // Explicitly for some Apple Fn key implementations
+            dwFlags: RAWINPUTDEVICE_FLAGS(RIDEV_INPUTSINK.0),
+            hwndTarget: hwnd,
+        },
+        RAWINPUTDEVICE {
+            usUsagePage: 0xFF01, // Another vendor usage page sometimes used by Apple
+            usUsage: 0x01,
+            dwFlags: RAWINPUTDEVICE_FLAGS(RIDEV_INPUTSINK.0),
+            hwndTarget: hwnd,
+        },
     ];
 
     RegisterRawInputDevices(&devices, std::mem::size_of::<RAWINPUTDEVICE>() as u32)?;
@@ -376,27 +412,27 @@ extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM
 }
 
 const RIM_TYPEHID: u32 = 2;
+const RIM_TYPEKEYBOARD: u32 = 1;
 
 unsafe fn handle_raw_input(lparam: LPARAM) {
     let hrawinput = HRAWINPUT(lparam.0 as *mut c_void);
     
-    let mut header = RAWINPUTHEADER::default();
-    let mut header_size = std::mem::size_of::<RAWINPUTHEADER>() as u32;
-    let res = GetRawInputData(
+    // First call: get the size of the RAWINPUT structure
+    let mut size = 0u32;
+    GetRawInputData(
         hrawinput,
         RID_INPUT,
-        Some(&mut header as *mut _ as *mut c_void),
-        &mut header_size,
+        None,
+        &mut size,
         std::mem::size_of::<RAWINPUTHEADER>() as u32,
     );
 
-    if res == u32::MAX {
-        log::error!("Failed to get raw input header");
+    if size == 0 {
         return;
     }
 
-    let mut buffer = vec![0u8; header.dwSize as usize];
-    let mut size = header.dwSize;
+    // Second call: get the actual RAWINPUT data
+    let mut buffer = vec![0u8; size as usize];
     let res = GetRawInputData(
         hrawinput,
         RID_INPUT,
@@ -428,15 +464,78 @@ unsafe fn handle_raw_input(lparam: LPARAM) {
 
             GLOBAL_MAPPER.with(|gm| {
                 if let Some(mapper_rc) = &*gm.borrow() {
+                    let mut mapper = mapper_rc.borrow_mut();
                     for (usage_page, usage, value) in events {
-                        mapper_rc
-                            .borrow_mut()
-                            .handle_hid_event(usage_page, usage, value);
+                        mapper.handle_hid_event(usage_page, usage, value);
                     }
                 }
             });
         }
     }
+}
+
+unsafe extern "system" fn keyboard_hook_proc(ncode: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+    if ncode >= 0 {
+        let kbd = *(lparam.0 as *const KBDLLHOOKSTRUCT);
+        
+        // Skip inputs injected by this daemon to prevent feedback loops
+        if kbd.dwExtraInfo == action_executor::DAEMON_INJECTION_TAG as usize {
+            return CallNextHookEx(None, ncode, wparam, lparam);
+        }
+
+        let msg = wparam.0 as u32;
+        let is_up = msg == WM_KEYUP || msg == WM_SYSKEYUP;
+        let vk = kbd.vkCode;
+        
+        // Translate VK to HID Usage (Usage Page 0x07)
+        let usage = match vk {
+            0x41..=0x5A => vk as u16 - 0x41 + 4, // A-Z (0x41='A' -> Usage 0x04)
+            0x30 => 0x27, // '0' -> Usage 0x27
+            0x31..=0x39 => vk as u16 - 0x31 + 0x1E, // 1-9 (0x31='1' -> Usage 0x1E)
+            0x0D => 0x28, // ENTER -> Usage 0x28
+            0x1B => 0x29, // ESCAPE -> Usage 0x29
+            0x08 => 0x2A, // BACKSPACE -> Usage 0x2A
+            0x09 => 0x2B, // TAB -> Usage 0x2B
+            0x20 => 0x2C, // SPACE -> Usage 0x2C
+            0x25 => 0x50, // LEFT -> Usage 0x50
+            0x26 => 0x52, // UP -> Usage 0x52
+            0x27 => 0x4F, // RIGHT -> Usage 0x4F
+            0x28 => 0x51, // DOWN -> Usage 0x51
+            0x2E => 0x4C, // DELETE -> Usage 0x4C (Forward Delete)
+            0x70..=0x7B => vk as u16 - 0x70 + 0x3A, // F1-F12 (0x70=F1 -> Usage 0x3A)
+            _ => 0,
+        };
+
+        if usage != 0 {
+            let mut should_suppress = false;
+            GLOBAL_MAPPER.with(|gm| {
+                if let Some(mapper_rc) = &*gm.borrow() {
+                    let mut mapper = mapper_rc.borrow_mut();
+                    
+                    if !is_up {
+                        // Check for mapping and trigger it
+                        if mapper.try_trigger_mapping(0x07, usage, 1) {
+                            SUPPRESSED_KEYS.with(|sk| sk.borrow_mut().insert(vk));
+                            should_suppress = true;
+                        }
+                    } else {
+                        // If it's an UP event, check if we suppressed the corresponding DOWN
+                        let was_suppressed = SUPPRESSED_KEYS.with(|sk| sk.borrow_mut().remove(&vk));
+                        if was_suppressed {
+                            should_suppress = true;
+                        }
+                        // Always update state for modifiers etc.
+                        mapper.handle_hid_event(0x07, usage, 0);
+                    }
+                }
+            });
+
+            if should_suppress {
+                return LRESULT(1); // Suppress the physical key event
+            }
+        }
+    }
+    CallNextHookEx(None, ncode, wparam, lparam)
 }
 
 fn install_service() -> windows::core::Result<()> {

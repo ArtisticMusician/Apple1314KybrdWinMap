@@ -20,7 +20,7 @@ pub fn parse_a1314_hid_report(report: &[u8]) -> Vec<(u16, u16, i32)> {
     }
 
     // Debug: log raw report (controlled by log level)
-    log::trace!("HID Report: {:02X?}", report);
+    log::debug!("HID Report (ID={:02X}, len={}): {:02X?}", report[0], report.len(), report);
 
     let report_id = report[0];
     let mut current_stateful_keys = HashSet::new(); // Keys that maintain a "pressed" state
@@ -50,8 +50,9 @@ pub fn parse_a1314_hid_report(report: &[u8]) -> Vec<(u16, u16, i32)> {
                     }
                 }
 
-                // Key codes in bytes 3-8 (Usage Page 0x07)
-                for i in 3..8 {
+                // Key codes in bytes 3 onwards (Usage Page 0x07)
+                // Standard 6-key rollover reports are 8 bytes total
+                for i in 3..report.len() {
                     if report[i] != NO_KEY && report[i] != ERROR_ROLLOVER {
                         let key_tuple = (0x07, report[i] as u16);
                         current_stateful_keys.insert(key_tuple);
@@ -80,16 +81,30 @@ pub fn parse_a1314_hid_report(report: &[u8]) -> Vec<(u16, u16, i32)> {
         }
         
         // Apple vendor-specific (Fn key state) (Usage Page 0xFF00)
-        0x05 => {
+        // Report 0x05 (typically USB) or 0x11 (typically Bluetooth)
+        0x05 | 0x11 => {
             if report.len() >= 2 {
-                // Fn key state is typically in byte 1, bit 0
-                let fn_state = (report[1] & 0x01) != 0;
+                // Heuristic: check bit 0 (0x01) for report 0x05, 
+                // and bit 4 (0x10) for report 0x11 as discovered in logs.
+                let mut fn_state = false;
+                if report_id == 0x05 {
+                    fn_state = (report[1] & 0x01) != 0;
+                } else if report_id == 0x11 {
+                    fn_state = (report[1] & 0x10) != 0;
+                    
+                    // Also check for Eject bit (0x08) in Bluetooth report 0x11
+                    let eject_state = (report[1] & 0x08) != 0;
+                    if eject_state {
+                        current_stateful_keys.insert((0x0C, 0x00B8)); // Standard Eject usage
+                    }
+                }
+
                 let key_tuple = (0xFF00, 0x0003); // Specific Fn state usage
                 if fn_state {
                     current_stateful_keys.insert(key_tuple);
                 }
             } else {
-                log::warn!("Vendor-specific report too short: {} bytes (expected 2)", report.len());
+                log::warn!("Vendor-specific report too short: {} bytes", report.len());
             }
         }
         
@@ -125,6 +140,7 @@ pub fn parse_a1314_hid_report(report: &[u8]) -> Vec<(u16, u16, i32)> {
         // Key-down events for stateful keys: keys that are pressed now but weren't before
         for key in current_stateful_keys.iter() {
             if !previous_stateful_keys.contains(key) {
+                log::debug!("Key-Down: {:04X}:{:04X}", key.0, key.1);
                 events.push((key.0, key.1, 1));
             }
         }

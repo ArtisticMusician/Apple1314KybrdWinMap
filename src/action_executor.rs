@@ -1,5 +1,5 @@
 // --- START OF FILE src/action_executor.rs ---
-use windows::core::PWSTR;
+use windows::core::{PWSTR, PCWSTR};
 use windows::Win32::Foundation::{CloseHandle, WPARAM, LPARAM};
 use windows::Win32::System::Threading::{
     CreateProcessW, PROCESS_INFORMATION, STARTUPINFOW,
@@ -20,6 +20,7 @@ use std::time::Duration;
 // Configurable delay between key events (in milliseconds)
 // Some applications need a small delay to properly register key combinations
 const KEY_EVENT_DELAY_MS: u64 = 1;
+pub const DAEMON_INJECTION_TAG: u32 = 0x1314DA00;
 
 #[derive(Debug, Clone)]
 pub enum Action {
@@ -207,7 +208,7 @@ unsafe fn send_key(vk: VIRTUAL_KEY, is_up: bool) {
                 wScan: 0,
                 dwFlags: if is_up { KEYEVENTF_KEYUP } else { Default::default() },
                 time: 0,
-                dwExtraInfo: 0,
+                dwExtraInfo: DAEMON_INJECTION_TAG as usize,
             },
         },
     };
@@ -249,6 +250,7 @@ fn launch_program(path: &str) {
         si.cb = std::mem::size_of::<STARTUPINFOW>() as u32;
         
         let mut pi = PROCESS_INFORMATION::default();
+        let working_dir = widestring("C:\\Windows");
 
         match CreateProcessW(
             None,
@@ -258,7 +260,7 @@ fn launch_program(path: &str) {
             false,
             Default::default(),
             None,
-            None,
+            PCWSTR(working_dir.as_ptr()),
             &si,
             &mut pi,
         ) {

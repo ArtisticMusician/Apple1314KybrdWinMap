@@ -1,70 +1,20 @@
 ###############################################################################
-# Apple Wireless Keyboard A1314 – Full Mapping File
-# This file uses friendly string names which are mapped to HID codes/Actions
-# hardcoded in src/variable_maps.rs
+# Apple Wireless Keyboard A1314 – Optimized Mapping File
+# Note: "Normal" keys (like A=A) should NOT be mapped here.
+# The daemon will automatically let original keys pass through.
+# Only map special combinations or keys you want to change.
 ###############################################################################
 
-# Normal keys (alphabetic)
-KEY_A = A
-KEY_B = B
-KEY_C = C
-KEY_D = D
-KEY_E = E
-KEY_F = F
-KEY_G = G
-KEY_H = H
-KEY_I = I
-KEY_J = J
-KEY_K = K
-KEY_L = L
-KEY_M = M
-KEY_N = N
-KEY_O = O
-KEY_P = P
-KEY_Q = Q
-KEY_R = R
-KEY_S = S
-KEY_T = T
-KEY_U = U
-KEY_V = V
-KEY_W = W
-KEY_X = X
-KEY_Y = Y
-KEY_Z = Z
+###############################################################################
+# Special Key Remappings
+###############################################################################
+# Map the native 'Delete' key (which is actually Backspace on A1314) back to Backspace
+# This is usually automatic, so you may not even need this.
+# DELETE = BACKSPACE
 
-# Number row
-KEY_1 = 1
-KEY_2 = 2
-KEY_3 = 3
-KEY_4 = 4
-KEY_5 = 5
-KEY_6 = 6
-KEY_7 = 7
-KEY_8 = 8
-KEY_9 = 9
-KEY_0 = 0
-
-# Symbols and punctuation (unshifted)
-MINUS = MINUS
-EQUALS = EQUALS
-LEFT_BRACKET = LEFT_BRACKET
-RIGHT_BRACKET = RIGHT_BRACKET
-BACKSLASH = BACKSLASH
-SEMICOLON = SEMICOLON
-APOSTROPHE = APOSTROPHE
-GRAVE = GRAVE
-COMMA = COMMA
-PERIOD = PERIOD
-SLASH = SLASH
-
-# Basic controls
-ENTER = ENTER
-ESCAPE = ESCAPE
-DELETE = BACKSPACE
-TAB = TAB
-SPACE = SPACE
-
-# Function keys - Default to media/system functions (Apple-style)
+###############################################################################
+# Function row - Default to media/system functions (Apple-style)
+###############################################################################
 F1 = BRIGHTNESS_DOWN
 F2 = BRIGHTNESS_UP
 F3 = WIN+TAB
@@ -78,64 +28,8 @@ F10 = MUTE
 F11 = VOLUME_DOWN
 F12 = VOLUME_UP
 
-# Arrows
-RIGHT_ARROW = RIGHT_ARROW
-LEFT_ARROW = LEFT_ARROW
-DOWN_ARROW = DOWN_ARROW
-UP_ARROW = UP_ARROW
-
 ###############################################################################
-# SHIFT-modified mappings (symbols produced by SHIFT+key)
-###############################################################################
-
-# LEFT_SHIFT or RIGHT_SHIFT + numbers = symbols
-LEFT_SHIFT+KEY_1 = !
-RIGHT_SHIFT+KEY_1 = !
-LEFT_SHIFT+KEY_2 = @
-RIGHT_SHIFT+KEY_2 = @
-LEFT_SHIFT+KEY_3 = #
-RIGHT_SHIFT+KEY_3 = #
-LEFT_SHIFT+KEY_4 = $
-RIGHT_SHIFT+KEY_4 = $
-LEFT_SHIFT+KEY_5 = %
-RIGHT_SHIFT+KEY_5 = %
-LEFT_SHIFT+KEY_6 = ^
-RIGHT_SHIFT+KEY_6 = ^
-LEFT_SHIFT+KEY_7 = &
-RIGHT_SHIFT+KEY_7 = &
-LEFT_SHIFT+KEY_8 = *
-RIGHT_SHIFT+KEY_8 = *
-LEFT_SHIFT+KEY_9 = (
-RIGHT_SHIFT+KEY_9 = (
-LEFT_SHIFT+KEY_0 = )
-RIGHT_SHIFT+KEY_0 = )
-
-# LEFT_SHIFT or RIGHT_SHIFT + punctuation = shifted symbols
-LEFT_SHIFT+MINUS = _
-RIGHT_SHIFT+MINUS = _
-LEFT_SHIFT+EQUALS = +
-RIGHT_SHIFT+EQUALS = +
-LEFT_SHIFT+LEFT_BRACKET = {
-RIGHT_SHIFT+LEFT_BRACKET = {
-LEFT_SHIFT+RIGHT_BRACKET = }
-RIGHT_SHIFT+RIGHT_BRACKET = }
-LEFT_SHIFT+BACKSLASH = |
-RIGHT_SHIFT+BACKSLASH = |
-LEFT_SHIFT+SEMICOLON = :
-RIGHT_SHIFT+SEMICOLON = :
-LEFT_SHIFT+APOSTROPHE = "
-RIGHT_SHIFT+APOSTROPHE = "
-LEFT_SHIFT+GRAVE = ~
-RIGHT_SHIFT+GRAVE = ~
-LEFT_SHIFT+COMMA = <
-RIGHT_SHIFT+COMMA = <
-LEFT_SHIFT+PERIOD = >
-RIGHT_SHIFT+PERIOD = >
-LEFT_SHIFT+SLASH = ?
-RIGHT_SHIFT+SLASH = ?
-
-###############################################################################
-# FN-modified mappings - Access actual F-keys and additional functions
+# FN-modified mappings - Access actual F-keys and Home/End/PgUp/PgDn
 ###############################################################################
 
 # Fn + F1-F12 → Actual function keys
@@ -152,25 +46,23 @@ FN+F10 = F10
 FN+F11 = F11
 FN+F12 = F12
 
-# Fn + Delete → Forward Delete
-FN+DELETE = DELETE
+# Fn + Backspace (labeled 'delete') → Forward Delete
+FN+BACKSPACE = DELETE
 
 # Fn + Arrow Keys → Home / End / Page Up / Page Down
-FN+UP_ARROW = HOME
-FN+DOWN_ARROW = END
-FN+LEFT_ARROW = PAGE_UP
-FN+RIGHT_ARROW = PAGE_DOWN
+# Verified standard Apple mapping:
+FN+UP_ARROW = PAGE_UP
+FN+DOWN_ARROW = PAGE_DOWN
+FN+LEFT_ARROW = HOME
+FN+RIGHT_ARROW = END
 
 ###############################################################################
 # EJECT-modified mappings (Eject key as a modifier)
 ###############################################################################
-
-# Eject + Numbers → Launch applications
 EJECT+KEY_1 = RUN("calc.exe")
 EJECT+KEY_2 = RUN("notepad.exe")
 EJECT+KEY_3 = RUN("mspaint.exe")
 
-# Eject + Letters → Custom shortcuts
 EJECT+KEY_A = RUN("notepad.exe")
 EJECT+KEY_M = RUN("wmplayer.exe")
 EJECT+KEY_T = RUN("taskmgr.exe")
@@ -178,9 +70,5 @@ EJECT+KEY_T = RUN("taskmgr.exe")
 ###############################################################################
 # EJECT+FN-modified mappings (Eject + Fn combination)
 ###############################################################################
-
-# Eject + Fn + 1 → Open PowerShell
 EJECT+FN+KEY_1 = RUN("powershell.exe")
-
-# Eject + Fn + T → Open Task Manager with keyboard shortcut
 EJECT+FN+KEY_T = CTRL+SHIFT+ESC
