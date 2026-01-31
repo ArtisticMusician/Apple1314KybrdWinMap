@@ -2,7 +2,7 @@
 mod hid_parser;
 mod key_mapper;
 mod action_executor;
-mod variable_maps; // Import the new module
+mod variable_maps;
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -23,33 +23,48 @@ use windows::Win32::UI::WindowsAndMessaging::{
 
 use key_mapper::KeyMapper;
 
+// Thread-local storage for the key mapper
+// IMPORTANT: This assumes all HID input processing happens on the window message thread.
+// The Windows raw input API guarantees WM_INPUT messages are delivered to the thread
+// that created the window, so this assumption holds as long as we don't spawn additional
+// threads to process HID input.
 thread_local! {
     static GLOBAL_MAPPER: RefCell<Option<Rc<RefCell<KeyMapper>>>> = RefCell::new(None);
 }
 
 fn main() -> windows::core::Result<()> {
+    // Initialize logging
+    // Set RUST_LOG environment variable to control log level
+    // Example: RUST_LOG=debug for verbose output, RUST_LOG=info for normal output
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
+        .format_timestamp(Some(env_logger::TimestampPrecision::Millis))
+        .init();
+
+    log::info!("A1314 Daemon starting...");
+    log::info!("Log level: {} (set RUST_LOG environment variable to change)", log::max_level());
+
     // Force initialization of lazy_static maps
     let _ = variable_maps::STRING_TO_HID_KEY.len();
     let _ = variable_maps::STRING_TO_ACTION.len();
 
-    // Determine mapping file path - check exe directory first, then current directory
-    let mapping_path = std::env::current_exe()
-        .ok()
-        .and_then(|exe_path| exe_path.parent().map(|p| p.join("A1314_mapping.txt")))
-        .filter(|p| p.exists())
-        .unwrap_or_else(|| std::path::PathBuf::from("A1314_mapping.txt"));
+    // Simplified mapping file path - always look next to the executable
+    let exe_path = std::env::current_exe()
+        .expect("Failed to get executable path");
+    let exe_dir = exe_path.parent()
+        .expect("Failed to get executable directory");
+    let mapping_path = exe_dir.join("A1314_mapping.txt");
 
-    println!("A1314 Daemon starting...");
-    println!("Looking for mapping file: {}", mapping_path.display());
+    log::info!("Executable location: {}", exe_path.display());
+    log::info!("Looking for mapping file: {}", mapping_path.display());
 
-    let mapper = Rc::new(RefCell::new(KeyMapper::new()));
-    
     if !mapping_path.exists() {
-        eprintln!("ERROR: Mapping file not found at: {}", mapping_path.display());
-        eprintln!("Please ensure A1314_mapping.txt is in the same directory as the executable.");
+        log::error!("Mapping file not found!");
+        log::error!("Expected location: {}", mapping_path.display());
+        log::error!("Please ensure A1314_mapping.txt is in the same directory as the executable");
         std::process::exit(1);
     }
-    
+
+    let mapper = Rc::new(RefCell::new(KeyMapper::new()));
     mapper.borrow_mut().load_mapping_file(&mapping_path);
 
     GLOBAL_MAPPER.with(|gm| {
@@ -86,6 +101,8 @@ fn main() -> windows::core::Result<()> {
         )?;
 
         register_raw_input(hwnd)?;
+        log::info!("Raw input registered successfully");
+        log::info!("Daemon is now running. Press Ctrl+C to exit.");
 
         let mut msg = MSG::default();
         while GetMessageW(&mut msg, HWND(null_mut()), 0, 0).into() {
@@ -94,6 +111,7 @@ fn main() -> windows::core::Result<()> {
         }
     }
 
+    log::info!("Daemon shutting down");
     Ok(())
 }
 
@@ -131,6 +149,7 @@ extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM
                 LRESULT(0)
             }
             WM_DESTROY => {
+                log::info!("Received WM_DESTROY, shutting down");
                 PostQuitMessage(0);
                 LRESULT(0)
             }
@@ -138,6 +157,9 @@ extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM
         }
     }
 }
+
+// HID Raw Input Type constant
+const RIM_TYPEHID: u32 = 2;
 
 unsafe fn handle_raw_input(lparam: LPARAM) {
     let hrawinput = HRAWINPUT(lparam.0 as *mut c_void);
@@ -153,6 +175,7 @@ unsafe fn handle_raw_input(lparam: LPARAM) {
     );
 
     if res == u32::MAX {
+        log::error!("Failed to get raw input header");
         return;
     }
 
@@ -167,13 +190,11 @@ unsafe fn handle_raw_input(lparam: LPARAM) {
     );
 
     if res == u32::MAX {
+        log::error!("Failed to get raw input data");
         return;
     }
 
     let raw: &RAWINPUT = &*(buffer.as_ptr() as *const RAWINPUT);
-
-    // Check the type using dwType field
-    const RIM_TYPEHID: u32 = 2; // RAW_INPUT_TYPE enum value for HID
 
     if raw.header.dwType == RIM_TYPEHID {
         let hid = raw.data.hid;

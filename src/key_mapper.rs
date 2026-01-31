@@ -54,12 +54,12 @@ impl KeyMapper {
         let text = match fs::read_to_string(path_ref) {
             Ok(t) => t,
             Err(e) => {
-                eprintln!("✗ Failed to read mapping file '{}': {}", path_ref.display(), e);
+                log::error!("Failed to read mapping file '{}': {}", path_ref.display(), e);
                 return;
             }
         };
 
-        println!("Loading mappings from: {}", path_ref.display());
+        log::info!("Loading mappings from: {}", path_ref.display());
 
         let mut normal = HashMap::new();
         let mut fn_map = HashMap::new();
@@ -67,17 +67,22 @@ impl KeyMapper {
         let mut eject_map = HashMap::new();
         let mut eject_fn_map = HashMap::new();
 
-        // No need for a first pass for variables anymore
+        let mut line_count = 0;
+        let mut error_count = 0;
+
         for (line_no, line) in text.lines().enumerate() {
             let line = line.trim();
             if line.is_empty() || line.starts_with('#') {
                 continue;
             }
 
+            line_count += 1;
+
             let parts: Vec<&str> = line.split('=').map(|s| s.trim()).collect();
             if parts.len() != 2 {
-                eprintln!("✗ Invalid mapping syntax at line {}: {}", line_no + 1, line);
-                eprintln!("  Expected format: KEY = ACTION");
+                log::error!("Invalid mapping syntax at line {}: {}", line_no + 1, line);
+                log::info!("  Expected format: KEY = ACTION");
+                error_count += 1;
                 continue;
             }
 
@@ -109,8 +114,9 @@ impl KeyMapper {
             let hid_key = match variable_maps::STRING_TO_HID_KEY.get(key_name) {
                 Some(key) => *key,
                 None => {
-                    eprintln!("✗ Unknown key name at line {}: '{}'", line_no + 1, key_name);
-                    eprintln!("  Check src/variable_maps.rs for valid key names.");
+                    log::error!("Unknown key name at line {}: '{}'", line_no + 1, key_name);
+                    log::info!("  Check src/variable_maps.rs for valid key names");
+                    error_count += 1;
                     continue;
                 }
             };
@@ -121,7 +127,10 @@ impl KeyMapper {
                     let path = &rest[..end];
                     Action::Run(path.to_string())
                 } else {
-                    Action::KeyCombo(rhs_str) // Fallback if RUN syntax is malformed
+                    log::error!("Malformed RUN() syntax at line {}: '{}'", line_no + 1, rhs_str);
+                    log::info!("  Expected format: RUN(\"path/to/program.exe\")");
+                    error_count += 1;
+                    Action::KeyCombo(rhs_str) // Fallback
                 }
             } else if let Some(rest) = rhs_str.strip_prefix("APPCOMMAND(") {
                 if let Some(end) = rest.find(')') {
@@ -129,14 +138,16 @@ impl KeyMapper {
                     if let Ok(cmd_val) = cmd_str.parse::<u32>() {
                         Action::AppCommand(cmd_val)
                     } else {
-                        eprintln!("✗ Invalid APPCOMMAND value at line {}: '{}'", line_no + 1, rhs_str);
-                        eprintln!("  Expected a number, e.g., APPCOMMAND(46)");
-                        Action::KeyCombo(rhs_str) // Fallback if APPCOMMAND value is invalid
+                        log::error!("Invalid APPCOMMAND value at line {}: '{}'", line_no + 1, rhs_str);
+                        log::info!("  Expected a number, e.g., APPCOMMAND(46)");
+                        error_count += 1;
+                        Action::KeyCombo(rhs_str) // Fallback
                     }
                 } else {
-                    eprintln!("✗ Malformed APPCOMMAND syntax at line {}: '{}'", line_no + 1, rhs_str);
-                    eprintln!("  Expected format: APPCOMMAND(number)");
-                    Action::KeyCombo(rhs_str) // Fallback if APPCOMMAND syntax is malformed
+                    log::error!("Malformed APPCOMMAND syntax at line {}: '{}'", line_no + 1, rhs_str);
+                    log::info!("  Expected format: APPCOMMAND(number)");
+                    error_count += 1;
+                    Action::KeyCombo(rhs_str) // Fallback
                 }
             }
             else {
@@ -164,17 +175,27 @@ impl KeyMapper {
         }
 
         self.maps = KeyMaps { normal, fn_map, shift_map, eject_map, eject_fn_map };
-        println!("✓ Loaded {} normal, {} Fn, {} Shift, {} Eject, {} Eject+Fn mappings", 
-                 self.maps.normal.len(), 
-                 self.maps.fn_map.len(), 
-                 self.maps.shift_map.len(),
-                 self.maps.eject_map.len(), 
-                 self.maps.eject_fn_map.len());
+        
+        log::info!("Loaded {} mappings from {} lines", 
+                   self.maps.normal.len() + self.maps.fn_map.len() + 
+                   self.maps.shift_map.len() + self.maps.eject_map.len() + 
+                   self.maps.eject_fn_map.len(),
+                   line_count);
+        log::info!("  Normal: {}, Fn: {}, Shift: {}, Eject: {}, Eject+Fn: {}", 
+                   self.maps.normal.len(), 
+                   self.maps.fn_map.len(), 
+                   self.maps.shift_map.len(),
+                   self.maps.eject_map.len(), 
+                   self.maps.eject_fn_map.len());
+        
+        if error_count > 0 {
+            log::warn!("{} errors encountered while loading mappings", error_count);
+        }
         
         if self.maps.normal.is_empty() && self.maps.fn_map.is_empty() && 
            self.maps.shift_map.is_empty() && self.maps.eject_map.is_empty() && 
            self.maps.eject_fn_map.is_empty() {
-            eprintln!("⚠ Warning: No valid mappings loaded!");
+            log::warn!("No valid mappings loaded! Check your mapping file syntax");
         }
     }
 
@@ -184,18 +205,21 @@ impl KeyMapper {
         // Update Fn state
         if key == FN_STATE_HID_KEY {
             self.fn_down = value != 0;
+            log::trace!("Fn key: {}", if self.fn_down { "DOWN" } else { "UP" });
             return;
         }
 
         // Update SHIFT state (either left or right)
         if key == LEFT_SHIFT_HID_KEY || key == RIGHT_SHIFT_HID_KEY {
             self.shift_down = value != 0;
+            log::trace!("Shift key: {}", if self.shift_down { "DOWN" } else { "UP" });
             return;
         }
 
         // Update EJECT state
         if key == EJECT_HID_KEY {
             self.eject_down = value != 0;
+            log::trace!("Eject key: {}", if self.eject_down { "DOWN" } else { "UP" });
             return;
         }
 
@@ -219,6 +243,8 @@ impl KeyMapper {
         };
 
         if let Some(action) = action {
+            log::debug!("Executing action for key {:04X}:{:04X} (modifiers: Fn={}, Shift={}, Eject={}): {:?}",
+                       usage_page, usage, self.fn_down, self.shift_down, self.eject_down, action);
             execute_action(action);
         }
     }

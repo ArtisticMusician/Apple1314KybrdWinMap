@@ -15,12 +15,17 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
 use windows::Win32::UI::WindowsAndMessaging::{
     GetForegroundWindow, PostMessageW, WM_APPCOMMAND,
 };
+use std::time::Duration;
+
+// Configurable delay between key events (in milliseconds)
+// Some applications need a small delay to properly register key combinations
+const KEY_EVENT_DELAY_MS: u64 = 1;
 
 #[derive(Debug, Clone)]
 pub enum Action {
     KeyCombo(String),
     Run(String),
-    AppCommand(u32), // New variant for APPCOMMANDs
+    AppCommand(u32), // Variant for APPCOMMANDs
 }
 
 pub fn execute_action(action: &Action) {
@@ -57,18 +62,29 @@ fn send_key_combo(combo: &str) {
         // Press modifiers
         for &modifier in &modifiers {
             send_key(modifier, false);
+            if KEY_EVENT_DELAY_MS > 0 {
+                std::thread::sleep(Duration::from_millis(KEY_EVENT_DELAY_MS));
+            }
         }
 
-        // Press main key
+        // Press and release main key (if present)
         if let Some(key) = main_key {
             send_key(key, false);
-            // Removed std::thread::sleep here - SendInput should be fast enough.
+            if KEY_EVENT_DELAY_MS > 0 {
+                std::thread::sleep(Duration::from_millis(KEY_EVENT_DELAY_MS));
+            }
             send_key(key, true);
+            if KEY_EVENT_DELAY_MS > 0 {
+                std::thread::sleep(Duration::from_millis(KEY_EVENT_DELAY_MS));
+            }
         }
 
-        // Release modifiers
+        // Release modifiers (in reverse order)
         for &modifier in modifiers.iter().rev() {
             send_key(modifier, true);
+            if KEY_EVENT_DELAY_MS > 0 && modifier != *modifiers.last().unwrap() {
+                std::thread::sleep(Duration::from_millis(KEY_EVENT_DELAY_MS));
+            }
         }
     }
 }
@@ -107,9 +123,9 @@ fn parse_key(key: &str) -> VIRTUAL_KEY {
         "F11" => VK_F11,
         "F12" => VK_F12,
         
-        // Media keys (these are also mapped from string names)
-        "BRIGHTNESS_DOWN" => VIRTUAL_KEY(0xE6), // Correct VK for brightness down
-        "BRIGHTNESS_UP" => VIRTUAL_KEY(0xE7),   // Correct VK for brightness up
+        // Media keys (using virtual key codes)
+        "BRIGHTNESS_DOWN" => VIRTUAL_KEY(0xE6),
+        "BRIGHTNESS_UP" => VIRTUAL_KEY(0xE7),
         "MEDIA_NEXT" | "NEXT_TRACK" => VIRTUAL_KEY(0xB0),
         "MEDIA_PREV" | "PREV_TRACK" => VIRTUAL_KEY(0xB1),
         "MEDIA_PLAY_PAUSE" | "PLAY_PAUSE" => VIRTUAL_KEY(0xB3),
@@ -172,7 +188,7 @@ fn parse_key(key: &str) -> VIRTUAL_KEY {
         "SLASH" | "/" | "?" => VIRTUAL_KEY(0xBF),
         
         _ => {
-            eprintln!("Unknown key: {}", key);
+            log::warn!("Unknown key name: '{}', mapping will not work", key);
             VIRTUAL_KEY(0)
         }
     }
@@ -205,22 +221,25 @@ fn send_app_command(app_cmd: u32) {
         if hwnd_fg.0 != 0 {
             // WM_APPCOMMAND takes app command in HIWORD(lParam)
             // and the target device (keyboard/mouse) in LOWORD(lParam)
-            // Here we indicate the command came from a keyboard.
-            let lparam: isize = (app_cmd as isize) << 16;
+            // Here we indicate the command came from a keyboard (device=1)
+            let lparam: isize = ((app_cmd as isize) << 16) | 1;
             let result = PostMessageW(hwnd_fg, WM_APPCOMMAND, 0, lparam);
-            if result.is_ok() {
-                println!("✓ Sent APPCOMMAND: {}", app_cmd);
-            } else {
-                eprintln!("✗ Failed to send APPCOMMAND {}: {:?}", app_cmd, result);
-                eprintln!("  The foreground application may not support this command.");
+            match result {
+                Ok(_) => {
+                    log::info!("Sent APPCOMMAND {} to foreground window", app_cmd);
+                    log::debug!("Note: Success only means the message was posted, not that it was processed");
+                }
+                Err(e) => {
+                    log::error!("Failed to send APPCOMMAND {}: {:?}", app_cmd, e);
+                    log::warn!("The foreground application may not support this command, or there may be a permissions issue");
+                }
             }
         } else {
-            eprintln!("✗ No foreground window to send APPCOMMAND {}", app_cmd);
-            eprintln!("  Hint: Focus a window before triggering this command.");
+            log::error!("No foreground window found for APPCOMMAND {}", app_cmd);
+            log::info!("Hint: Ensure an application window is focused before triggering this command");
         }
     }
 }
-
 
 fn launch_program(path: &str) {
     unsafe {
@@ -244,15 +263,15 @@ fn launch_program(path: &str) {
             &mut pi,
         ) {
             Ok(_) => {
-                println!("✓ Successfully launched: {}", path);
+                log::info!("Successfully launched: {}", path);
                 // Close handles to avoid leaks
                 let _ = CloseHandle(pi.hProcess);
                 let _ = CloseHandle(pi.hThread);
             }
             Err(e) => {
-                eprintln!("✗ Failed to launch '{}': {}", path, e);
-                eprintln!("  Error code: {:?}", e.code());
-                eprintln!("  Hint: Ensure the program path is correct and accessible.");
+                log::error!("Failed to launch '{}': {}", path, e);
+                log::debug!("Error code: {:?}", e.code());
+                log::info!("Hint: Ensure the program path is correct and accessible");
             }
         }
     }
