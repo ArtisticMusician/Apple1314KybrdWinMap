@@ -54,6 +54,19 @@ lazy_static::lazy_static! {
         m.insert("TAB", HidKey { usage_page: 0x07, usage: 0x002B });
         m.insert("SPACE", HidKey { usage_page: 0x07, usage: 0x002C });
 
+        // Symbols and punctuation (US keyboard layout)
+        m.insert("MINUS", HidKey { usage_page: 0x07, usage: 0x002D });           // - and _
+        m.insert("EQUALS", HidKey { usage_page: 0x07, usage: 0x002E });          // = and +
+        m.insert("LEFT_BRACKET", HidKey { usage_page: 0x07, usage: 0x002F });    // [ and {
+        m.insert("RIGHT_BRACKET", HidKey { usage_page: 0x07, usage: 0x0030 });   // ] and }
+        m.insert("BACKSLASH", HidKey { usage_page: 0x07, usage: 0x0031 });       // \ and |
+        m.insert("SEMICOLON", HidKey { usage_page: 0x07, usage: 0x0033 });       // ; and :
+        m.insert("APOSTROPHE", HidKey { usage_page: 0x07, usage: 0x0034 });      // ' and "
+        m.insert("GRAVE", HidKey { usage_page: 0x07, usage: 0x0035 });           // ` and ~
+        m.insert("COMMA", HidKey { usage_page: 0x07, usage: 0x0036 });           // , and <
+        m.insert("PERIOD", HidKey { usage_page: 0x07, usage: 0x0037 });          // . and >
+        m.insert("SLASH", HidKey { usage_page: 0x07, usage: 0x0038 });           // / and ?
+
         // Function keys
         m.insert("F1", HidKey { usage_page: 0x07, usage: 0x003A });
         m.insert("F2", HidKey { usage_page: 0x07, usage: 0x003B });
@@ -73,6 +86,13 @@ lazy_static::lazy_static! {
         m.insert("LEFT_ARROW", HidKey { usage_page: 0x07, usage: 0x0050 });
         m.insert("DOWN_ARROW", HidKey { usage_page: 0x07, usage: 0x0051 });
         m.insert("UP_ARROW", HidKey { usage_page: 0x07, usage: 0x0052 });
+
+        // Navigation keys
+        m.insert("DELETE", HidKey { usage_page: 0x07, usage: 0x004C });
+        m.insert("HOME", HidKey { usage_page: 0x07, usage: 0x004A });
+        m.insert("END", HidKey { usage_page: 0x07, usage: 0x004D });
+        m.insert("PAGE_UP", HidKey { usage_page: 0x07, usage: 0x004B });
+        m.insert("PAGE_DOWN", HidKey { usage_page: 0x07, usage: 0x004E });
 
         // Modifiers (These are used internally by the Raw Input Handler, not typically mapped by user directly)
         m.insert("LEFT_CTRL", HidKey { usage_page: 0x07, usage: 0x00E0 });
@@ -183,6 +203,52 @@ lazy_static::lazy_static! {
         m.insert("LEFT_ARROW", Action::KeyCombo("LEFT_ARROW".to_string()));
         m.insert("DOWN_ARROW", Action::KeyCombo("DOWN_ARROW".to_string()));
         m.insert("UP_ARROW", Action::KeyCombo("UP_ARROW".to_string()));
+        
+        // Symbols and punctuation
+        m.insert("MINUS", Action::KeyCombo("MINUS".to_string()));
+        m.insert("EQUALS", Action::KeyCombo("EQUALS".to_string()));
+        m.insert("LEFT_BRACKET", Action::KeyCombo("LEFT_BRACKET".to_string()));
+        m.insert("RIGHT_BRACKET", Action::KeyCombo("RIGHT_BRACKET".to_string()));
+        m.insert("BACKSLASH", Action::KeyCombo("BACKSLASH".to_string()));
+        m.insert("SEMICOLON", Action::KeyCombo("SEMICOLON".to_string()));
+        m.insert("APOSTROPHE", Action::KeyCombo("APOSTROPHE".to_string()));
+        m.insert("GRAVE", Action::KeyCombo("GRAVE".to_string()));
+        m.insert("COMMA", Action::KeyCombo("COMMA".to_string()));
+        m.insert("PERIOD", Action::KeyCombo("PERIOD".to_string()));
+        m.insert("SLASH", Action::KeyCombo("SLASH".to_string()));
+
+        // Shifted symbol variants (for explicit remapping)
+        m.insert("!", Action::KeyCombo("SHIFT+1".to_string()));
+        m.insert("@", Action::KeyCombo("SHIFT+2".to_string()));
+        m.insert("#", Action::KeyCombo("SHIFT+3".to_string()));
+        m.insert("$", Action::KeyCombo("SHIFT+4".to_string()));
+        m.insert("%", Action::KeyCombo("SHIFT+5".to_string()));
+        m.insert("^", Action::KeyCombo("SHIFT+6".to_string()));
+        m.insert("&", Action::KeyCombo("SHIFT+7".to_string()));
+        m.insert("*", Action::KeyCombo("SHIFT+8".to_string()));
+        m.insert("(", Action::KeyCombo("SHIFT+9".to_string()));
+        m.insert(")", Action::KeyCombo("SHIFT+0".to_string()));
+        m.insert("_", Action::KeyCombo("SHIFT+MINUS".to_string()));
+        m.insert("+", Action::KeyCombo("SHIFT+EQUALS".to_string()));
+        m.insert("{", Action::KeyCombo("SHIFT+LEFT_BRACKET".to_string()));
+        m.insert("}", Action::KeyCombo("SHIFT+RIGHT_BRACKET".to_string()));
+        m.insert("|", Action::KeyCombo("SHIFT+BACKSLASH".to_string()));
+        m.insert(":", Action::KeyCombo("SHIFT+SEMICOLON".to_string()));
+        m.insert("\"", Action::KeyCombo("SHIFT+APOSTROPHE".to_string()));
+        m.insert("~", Action::KeyCombo("SHIFT+GRAVE".to_string()));
+        m.insert("<", Action::KeyCombo("SHIFT+COMMA".to_string()));
+        m.insert(">", Action::KeyCombo("SHIFT+PERIOD".to_string()));
+        m.insert("?", Action::KeyCombo("SHIFT+SLASH".to_string()));
+
+        // Modifiers (for pass-through mapping)
+        m.insert("LEFT_CTRL", Action::KeyCombo("CTRL".to_string()));
+        m.insert("RIGHT_CTRL", Action::KeyCombo("CTRL".to_string()));
+        m.insert("LEFT_SHIFT", Action::KeyCombo("SHIFT".to_string()));
+        m.insert("RIGHT_SHIFT", Action::KeyCombo("SHIFT".to_string()));
+        m.insert("LEFT_ALT", Action::KeyCombo("ALT".to_string()));
+        m.insert("RIGHT_ALT", Action::KeyCombo("ALT".to_string()));
+        m.insert("LEFT_GUI", Action::KeyCombo("WIN".to_string()));
+        m.insert("RIGHT_GUI", Action::KeyCombo("WIN".to_string()));
         
         m
     };

@@ -4,7 +4,7 @@
 # hardcoded in src/variable_maps.rs
 ###############################################################################
 
-# Normal keys
+# Normal keys (alphabetic)
 KEY_A = A
 KEY_B = B
 KEY_C = C
@@ -30,7 +30,7 @@ KEY_V = V
 KEY_W = W
 KEY_X = X
 KEY_Y = Y
-KEY_Z
+KEY_Z = Z
 
 # Number row
 KEY_1 = 1
@@ -44,26 +44,39 @@ KEY_8 = 8
 KEY_9 = 9
 KEY_0 = 0
 
+# Symbols and punctuation (unshifted)
+MINUS = MINUS
+EQUALS = EQUALS
+LEFT_BRACKET = LEFT_BRACKET
+RIGHT_BRACKET = RIGHT_BRACKET
+BACKSLASH = BACKSLASH
+SEMICOLON = SEMICOLON
+APOSTROPHE = APOSTROPHE
+GRAVE = GRAVE
+COMMA = COMMA
+PERIOD = PERIOD
+SLASH = SLASH
+
 # Basic controls
 ENTER = ENTER
 ESCAPE = ESCAPE
-BACKSPACE = BACKSPACE
+DELETE = BACKSPACE
 TAB = TAB
 SPACE = SPACE
 
-# Function keys
-F1 = F1
-F2 = F2
-F3 = F3
-F4 = F4
-F5 = F5
-F6 = F6
-F7 = F7
-F8 = F8
-F9 = F9
-F10 = F10
-F11 = F11
-F12 = F12
+# Function keys - Default to media/system functions (Apple-style)
+F1 = BRIGHTNESS_DOWN
+F2 = BRIGHTNESS_UP
+F3 = WIN+TAB
+F4 = WIN+S
+F5 = WIN+H
+F6 = WIN+A
+F7 = MEDIA_PREV
+F8 = MEDIA_PLAY_PAUSE
+F9 = MEDIA_NEXT
+F10 = MUTE
+F11 = VOLUME_DOWN
+F12 = VOLUME_UP
 
 # Arrows
 RIGHT_ARROW = RIGHT_ARROW
@@ -71,88 +84,103 @@ LEFT_ARROW = LEFT_ARROW
 DOWN_ARROW = DOWN_ARROW
 UP_ARROW = UP_ARROW
 
-# Modifiers (These are tracked by the daemon, but not directly mapped by user normally)
-# LEFT_CTRL = LEFT_CTRL
-# LEFT_SHIFT = LEFT_SHIFT
-# LEFT_ALT = LEFT_ALT
-# LEFT_GUI = LEFT_GUI
-# RIGHT_CTRL = RIGHT_CTRL
-# RIGHT_SHIFT = RIGHT_SHIFT
-# RIGHT_ALT = RIGHT_ALT
-# RIGHT_GUI = RIGHT_GUI
-
-# Consumer/media keys (These can also be targets for actions)
-BRIGHTNESS_DOWN = BRIGHTNESS_DOWN
-BRIGHTNESS_UP = BRIGHTNESS_UP
-MEDIA_NEXT = MEDIA_NEXT
-MEDIA_PREV = MEDIA_PREV
-EJECT = EJECT # EJECT key now functions as a modifier
-MEDIA_PLAY_PAUSE = MEDIA_PLAY_PAUSE
-MUTE = MUTE
-VOLUME_UP = VOLUME_UP
-VOLUME_DOWN = VOLUME_DOWN
-
-# Fn state (Apple vendor page)
-FN_STATE = FN_STATE
-
 ###############################################################################
-# FN-modified mappings (Apple-style behavior translated to Windows actions)
+# SHIFT-modified mappings (symbols produced by SHIFT+key)
 ###############################################################################
 
-# Fn + F1/F2 → Brightness Down / Up
-FN+F1 = BRIGHTNESS_DOWN      # F1
-FN+F2 = BRIGHTNESS_UP        # F2
+# LEFT_SHIFT or RIGHT_SHIFT + numbers = symbols
+LEFT_SHIFT+KEY_1 = !
+RIGHT_SHIFT+KEY_1 = !
+LEFT_SHIFT+KEY_2 = @
+RIGHT_SHIFT+KEY_2 = @
+LEFT_SHIFT+KEY_3 = #
+RIGHT_SHIFT+KEY_3 = #
+LEFT_SHIFT+KEY_4 = $
+RIGHT_SHIFT+KEY_4 = $
+LEFT_SHIFT+KEY_5 = %
+RIGHT_SHIFT+KEY_5 = %
+LEFT_SHIFT+KEY_6 = ^
+RIGHT_SHIFT+KEY_6 = ^
+LEFT_SHIFT+KEY_7 = &
+RIGHT_SHIFT+KEY_7 = &
+LEFT_SHIFT+KEY_8 = *
+RIGHT_SHIFT+KEY_8 = *
+LEFT_SHIFT+KEY_9 = (
+RIGHT_SHIFT+KEY_9 = (
+LEFT_SHIFT+KEY_0 = )
+RIGHT_SHIFT+KEY_0 = )
 
-# Fn + F3 → Mission Control (Windows equivalent: Task View)
-FN+F3 = WIN+TAB              # F3
+# LEFT_SHIFT or RIGHT_SHIFT + punctuation = shifted symbols
+LEFT_SHIFT+MINUS = _
+RIGHT_SHIFT+MINUS = _
+LEFT_SHIFT+EQUALS = +
+RIGHT_SHIFT+EQUALS = +
+LEFT_SHIFT+LEFT_BRACKET = {
+RIGHT_SHIFT+LEFT_BRACKET = {
+LEFT_SHIFT+RIGHT_BRACKET = }
+RIGHT_SHIFT+RIGHT_BRACKET = }
+LEFT_SHIFT+BACKSLASH = |
+RIGHT_SHIFT+BACKSLASH = |
+LEFT_SHIFT+SEMICOLON = :
+RIGHT_SHIFT+SEMICOLON = :
+LEFT_SHIFT+APOSTROPHE = "
+RIGHT_SHIFT+APOSTROPHE = "
+LEFT_SHIFT+GRAVE = ~
+RIGHT_SHIFT+GRAVE = ~
+LEFT_SHIFT+COMMA = <
+RIGHT_SHIFT+COMMA = <
+LEFT_SHIFT+PERIOD = >
+RIGHT_SHIFT+PERIOD = >
+LEFT_SHIFT+SLASH = ?
+RIGHT_SHIFT+SLASH = ?
 
-# Fn + F4 → Spotlight Search / Launchpad (Windows equivalent: Search)
-FN+F4 = WIN+S                # F4
+###############################################################################
+# FN-modified mappings - Access actual F-keys and additional functions
+###############################################################################
 
-# Fn + F5 → Dictation/Siri (Windows equivalent: Win+H = Dictation)
-FN+F5 = WIN+H                # F5
+# Fn + F1-F12 → Actual function keys
+FN+F1 = F1
+FN+F2 = F2
+FN+F3 = F3
+FN+F4 = F4
+FN+F5 = F5
+FN+F6 = F6
+FN+F7 = F7
+FN+F8 = F8
+FN+F9 = F9
+FN+F10 = F10
+FN+F11 = F11
+FN+F12 = F12
 
-# Fn + F6 → Do Not Disturb (Windows equivalent: Toggle Focus Assist)
-FN+F6 = WIN+A                # F6  (Action Center; user can toggle Focus Assist)
-
-# Fn + F7/F8/F9 → Rewind / Play-Pause / Fast-Forward
-FN+F7 = MEDIA_PREV           # F7
-FN+F8 = MEDIA_PLAY_PAUSE     # F8
-FN+F9 = MEDIA_NEXT           # F9
-
-# Fn + F10/F11/F12 → Mute / Volume Down / Volume Up
-FN+F10 = MUTE                 # F10
-FN+F11 = VOLUME_DOWN          # F11
-FN+F12 = VOLUME_UP            # F12
-
-# Fn + Backspace → Forward Delete
-FN+BACKSPACE = DELETE         # Backspace → Forward Delete
+# Fn + Delete → Forward Delete
+FN+DELETE = DELETE
 
 # Fn + Arrow Keys → Home / End / Page Up / Page Down
-FN+UP_ARROW = HOME                 # Up Arrow
-FN+DOWN_ARROW = END                # Down Arrow
-FN+LEFT_ARROW = PAGE_UP              # Left Arrow
-FN+RIGHT_ARROW = PAGE_DOWN           # Right Arrow
+FN+UP_ARROW = HOME
+FN+DOWN_ARROW = END
+FN+LEFT_ARROW = PAGE_UP
+FN+RIGHT_ARROW = PAGE_DOWN
 
 ###############################################################################
-# EJECT-modified mappings (Eject key as a new modifier)
+# EJECT-modified mappings (Eject key as a modifier)
 ###############################################################################
 
-# Eject + 1 -> Launch Calculator
+# Eject + Numbers → Launch applications
 EJECT+KEY_1 = RUN("calc.exe")
+EJECT+KEY_2 = RUN("notepad.exe")
+EJECT+KEY_3 = RUN("mspaint.exe")
 
-# Eject + A -> Open Notepad
+# Eject + Letters → Custom shortcuts
 EJECT+KEY_A = RUN("notepad.exe")
-
-# Eject + F1 -> Mute
-EJECT+F1 = MUTE
+EJECT+KEY_M = RUN("wmplayer.exe")
+EJECT+KEY_T = RUN("taskmgr.exe")
 
 ###############################################################################
-# EJECT+FN-modified mappings (Eject + Fn keys as modifiers)
+# EJECT+FN-modified mappings (Eject + Fn combination)
 ###############################################################################
 
-# Eject + Fn + 1 -> Open PowerShell
+# Eject + Fn + 1 → Open PowerShell
 EJECT+FN+KEY_1 = RUN("powershell.exe")
 
-# Eject + Fn + F1 -> Max Brightness
-EJECT+FN+F1 = BRIGHTNESS_UP
+# Eject + Fn + T → Open Task Manager with keyboard shortcut
+EJECT+FN+KEY_T = CTRL+SHIFT+ESC

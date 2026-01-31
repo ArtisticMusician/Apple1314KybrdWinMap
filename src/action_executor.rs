@@ -1,5 +1,6 @@
 // --- START OF FILE src/action_executor.rs ---
 use windows::core::PWSTR;
+use windows::Win32::Foundation::CloseHandle;
 use windows::Win32::System::Threading::{
     CreateProcessW, PROCESS_INFORMATION, STARTUPINFOW,
 };
@@ -12,7 +13,7 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
     VK_LEFT, VK_RIGHT, VK_UP, VK_DOWN,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    GetForegroundWindow, PostMessageW, WM_APPCOMMAND, APPCOMMAND_EJECT,
+    GetForegroundWindow, PostMessageW, WM_APPCOMMAND,
 };
 
 #[derive(Debug, Clone)]
@@ -158,17 +159,17 @@ fn parse_key(key: &str) -> VIRTUAL_KEY {
         "Z" => VIRTUAL_KEY(0x5A),
         
         // Symbols (OEM keys - these work for US keyboard layout)
-        "MINUS" | "-" => VIRTUAL_KEY(0xBD),
-        "EQUALS" | "=" => VIRTUAL_KEY(0xBB),
-        "LBRACKET" | "[" => VIRTUAL_KEY(0xDB),
-        "RBRACKET" | "]" => VIRTUAL_KEY(0xDD),
-        "SEMICOLON" | ";" => VIRTUAL_KEY(0xBA),
-        "APOSTROPHE" | "'" => VIRTUAL_KEY(0xDE),
-        "GRAVE" | "`" => VIRTUAL_KEY(0xC0),
-        "BACKSLASH" | "\\" => VIRTUAL_KEY(0xDC),
-        "COMMA" | "," => VIRTUAL_KEY(0xBC),
-        "PERIOD" | "." => VIRTUAL_KEY(0xBE),
-        "SLASH" | "/" => VIRTUAL_KEY(0xBF),
+        "MINUS" | "-" | "_" => VIRTUAL_KEY(0xBD),
+        "EQUALS" | "=" | "+" => VIRTUAL_KEY(0xBB),
+        "LEFT_BRACKET" | "LBRACKET" | "[" | "{" => VIRTUAL_KEY(0xDB),
+        "RIGHT_BRACKET" | "RBRACKET" | "]" | "}" => VIRTUAL_KEY(0xDD),
+        "SEMICOLON" | ";" | ":" => VIRTUAL_KEY(0xBA),
+        "APOSTROPHE" | "'" | "\"" => VIRTUAL_KEY(0xDE),
+        "GRAVE" | "`" | "~" => VIRTUAL_KEY(0xC0),
+        "BACKSLASH" | "\\" | "|" => VIRTUAL_KEY(0xDC),
+        "COMMA" | "," | "<" => VIRTUAL_KEY(0xBC),
+        "PERIOD" | "." | ">" => VIRTUAL_KEY(0xBE),
+        "SLASH" | "/" | "?" => VIRTUAL_KEY(0xBF),
         
         _ => {
             eprintln!("Unknown key: {}", key);
@@ -208,12 +209,14 @@ fn send_app_command(app_cmd: u32) {
             let lparam: isize = (app_cmd as isize) << 16;
             let result = PostMessageW(hwnd_fg, WM_APPCOMMAND, 0, lparam);
             if result.is_ok() {
-                println!("Sent APPCOMMAND: {}", app_cmd);
+                println!("✓ Sent APPCOMMAND: {}", app_cmd);
             } else {
-                eprintln!("Failed to send APPCOMMAND {}: {:?}", app_cmd, result);
+                eprintln!("✗ Failed to send APPCOMMAND {}: {:?}", app_cmd, result);
+                eprintln!("  The foreground application may not support this command.");
             }
         } else {
-            eprintln!("No foreground window to send APPCOMMAND {}", app_cmd);
+            eprintln!("✗ No foreground window to send APPCOMMAND {}", app_cmd);
+            eprintln!("  Hint: Focus a window before triggering this command.");
         }
     }
 }
@@ -240,8 +243,17 @@ fn launch_program(path: &str) {
             &si,
             &mut pi,
         ) {
-            Ok(_) => println!("Successfully launched: {}", path),
-            Err(e) => eprintln!("Failed to launch '{}': {:?}", path, e),
+            Ok(_) => {
+                println!("✓ Successfully launched: {}", path);
+                // Close handles to avoid leaks
+                let _ = CloseHandle(pi.hProcess);
+                let _ = CloseHandle(pi.hThread);
+            }
+            Err(e) => {
+                eprintln!("✗ Failed to launch '{}': {}", path, e);
+                eprintln!("  Error code: {:?}", e.code());
+                eprintln!("  Hint: Ensure the program path is correct and accessible.");
+            }
         }
     }
 }

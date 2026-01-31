@@ -1,3 +1,4 @@
+# --- START OF FILE Cargo.toml ---
 [package]
 name = "a1314_daemon"
 version = "0.1.0"
@@ -15,3 +16,4 @@ windows = { version = "0.58", features = [
     "Win32_Security",
     "Win32_Graphics_Gdi",
 ] }
+lazy_static = "1.4" # Add this line

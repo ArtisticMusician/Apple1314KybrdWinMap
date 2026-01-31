@@ -1,10 +1,13 @@
+// --- START OF FILE src/main.rs ---
 mod hid_parser;
 mod key_mapper;
 mod action_executor;
+mod variable_maps; // Import the new module
 
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::ptr::null_mut;
+use std::ffi::c_void;
 
 use windows::core::PCWSTR;
 use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
@@ -25,8 +28,29 @@ thread_local! {
 }
 
 fn main() -> windows::core::Result<()> {
+    // Force initialization of lazy_static maps
+    let _ = variable_maps::STRING_TO_HID_KEY.len();
+    let _ = variable_maps::STRING_TO_ACTION.len();
+
+    // Determine mapping file path - check exe directory first, then current directory
+    let mapping_path = std::env::current_exe()
+        .ok()
+        .and_then(|exe_path| exe_path.parent().map(|p| p.join("A1314_mapping.txt")))
+        .filter(|p| p.exists())
+        .unwrap_or_else(|| std::path::PathBuf::from("A1314_mapping.txt"));
+
+    println!("A1314 Daemon starting...");
+    println!("Looking for mapping file: {}", mapping_path.display());
+
     let mapper = Rc::new(RefCell::new(KeyMapper::new()));
-    mapper.borrow_mut().load_mapping_file("A1314_mapping.txt");
+    
+    if !mapping_path.exists() {
+        eprintln!("ERROR: Mapping file not found at: {}", mapping_path.display());
+        eprintln!("Please ensure A1314_mapping.txt is in the same directory as the executable.");
+        std::process::exit(1);
+    }
+    
+    mapper.borrow_mut().load_mapping_file(&mapping_path);
 
     GLOBAL_MAPPER.with(|gm| {
         *gm.borrow_mut() = Some(mapper.clone());
@@ -76,20 +100,20 @@ fn main() -> windows::core::Result<()> {
 unsafe fn register_raw_input(hwnd: HWND) -> windows::core::Result<()> {
     let devices = [
         RAWINPUTDEVICE {
-            usUsagePage: 0x01,
-            usUsage: 0x06,
+            usUsagePage: 0x01, // Generic Desktop Controls
+            usUsage: 0x06,     // Keyboard
             dwFlags: RAWINPUTDEVICE_FLAGS(RIDEV_INPUTSINK.0),
             hwndTarget: hwnd,
         },
         RAWINPUTDEVICE {
-            usUsagePage: 0x0C,
-            usUsage: 0x01,
+            usUsagePage: 0x0C, // Consumer (media keys like EJECT)
+            usUsage: 0x01,     // Consumer Control - top-level collection, registers all 0x0C usages
             dwFlags: RAWINPUTDEVICE_FLAGS(RIDEV_INPUTSINK.0),
             hwndTarget: hwnd,
         },
         RAWINPUTDEVICE {
-            usUsagePage: 0xFF00,
-            usUsage: 0x01,
+            usUsagePage: 0xFF00, // Apple Vendor-Specific Usage Page
+            usUsage: 0x01,       // Likely for the Fn key state (top-level collection)
             dwFlags: RAWINPUTDEVICE_FLAGS(RIDEV_INPUTSINK.0),
             hwndTarget: hwnd,
         },
@@ -116,8 +140,6 @@ extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM
 }
 
 unsafe fn handle_raw_input(lparam: LPARAM) {
-    use std::ffi::c_void;
-
     let hrawinput = HRAWINPUT(lparam.0 as *mut c_void);
     
     let mut header = RAWINPUTHEADER::default();
@@ -151,8 +173,8 @@ unsafe fn handle_raw_input(lparam: LPARAM) {
     let raw: &RAWINPUT = &*(buffer.as_ptr() as *const RAWINPUT);
 
     // Check the type using dwType field
-    const RIM_TYPEHID: u32 = 2;
-    
+    const RIM_TYPEHID: u32 = 2; // RAW_INPUT_TYPE enum value for HID
+
     if raw.header.dwType == RIM_TYPEHID {
         let hid = raw.data.hid;
         let report_size = hid.dwSizeHid as usize;
