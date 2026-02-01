@@ -168,7 +168,7 @@ fn main() -> windows::core::Result<()> {
         log::info!("Low-level keyboard hook installed for key suppression");
 
         // Create system tray icon
-        if let Err(e) = create_system_tray(&exe_dir) {
+        if let Err(e) = create_system_tray(&exe_dir, hwnd) {
             log::error!("Failed to create system tray icon: {}", e);
         } else {
             log::info!("System tray icon created");
@@ -239,7 +239,7 @@ fn handle_file_watch_events(rx: Receiver<()>, hwnd: HWND) {
     }
 }
 
-fn create_system_tray(_exe_dir: &std::path::Path) -> Result<(), String> {
+fn create_system_tray(_exe_dir: &std::path::Path, hwnd: HWND) -> Result<(), String> {
     // Load icon from embedded resources (ordinal 1 is standard for winres)
     let icon = Icon::from_resource(1, Some((32, 32)))
         .or_else(|_| {
@@ -275,22 +275,20 @@ fn create_system_tray(_exe_dir: &std::path::Path) -> Result<(), String> {
     let exit_id = exit_item.id().clone();
 
     // Handle menu events
+    let hwnd_val = hwnd.0 as usize;
     std::thread::spawn(move || {
+        let hwnd = HWND(hwnd_val as *mut c_void);
         loop {
             if let Ok(event) = tray_icon::menu::MenuEvent::receiver().recv() {
-                MAIN_WINDOW.with(|wnd| {
-                    if let Some(hwnd) = *wnd.borrow() {
-                        unsafe {
-                            if event.id == reload_id {
-                                let _ = PostMessageW(hwnd, WM_RELOAD_CONFIG, WPARAM(0), LPARAM(0));
-                            } else if event.id == reset_id {
-                                let _ = PostMessageW(hwnd, WM_RESET_CONFIG, WPARAM(0), LPARAM(0));
-                            } else if event.id == exit_id {
-                                let _ = PostMessageW(hwnd, WM_EXIT_APP, WPARAM(0), LPARAM(0));
-                            }
-                        }
+                unsafe {
+                    if event.id == reload_id {
+                        let _ = PostMessageW(hwnd, WM_RELOAD_CONFIG, WPARAM(0), LPARAM(0));
+                    } else if event.id == reset_id {
+                        let _ = PostMessageW(hwnd, WM_RESET_CONFIG, WPARAM(0), LPARAM(0));
+                    } else if event.id == exit_id {
+                        let _ = PostMessageW(hwnd, WM_EXIT_APP, WPARAM(0), LPARAM(0));
                     }
-                });
+                }
             }
         }
     });

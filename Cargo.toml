@@ -1,7 +1,7 @@
 # --- START OF FILE Cargo.toml ---
 [package]
-name = "a1314_daemon_v20260131"
-version = "2026.1.31"
+name = "a1314_daemon"
+version = "1.0.0"
 edition = "2021"
 
 [dependencies]

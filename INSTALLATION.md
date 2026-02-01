@@ -1,4 +1,4 @@
-# Quick Installation Guide - A1314 Daemon v0.2.0
+# Quick Installation Guide - A1314 Daemon v1.0.0
 
 ## 📦 What You Need
 
