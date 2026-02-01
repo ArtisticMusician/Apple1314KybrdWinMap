@@ -1,18 +1,18 @@
-that's what I wanted that's like Scary this says that cancel <p align="center">
+ <p align="center">
   <img src="RottenAppleIcon.png" width="200" alt="Rotten Apple Logo">
 </p>
 
 # Rotten Apple A1314 Daemon 
 
-- Developed by Josh McCann
-- Version 2026.1.31
+Developed by Josh McCann | Version 2026.1.31
 
 **Apple A1314 Wireless Keyboard Mapper for Windows**
 
 A professional, high-performance Windows daemon that intercepts raw HID input from the Apple Wireless Keyboard (A1314) and allows seamless key remapping, including full `Fn` and `Eject` modifier support.
 
-[![Version](https://img.shields.io/badge/version-2026.1.31-blue.svg)](https://github.com/yourusername/a1314_daemon_v20260131)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/version-2026.1.31-cyan.svg)](https://github.com/yourusername/a1314_daemon_v20260131)
+[![License](https://img.shields.io/badge/license-PERSONAL-dark_green.svg)](LICENSE)
+[![Coffee](https://img.shields.io/badge/BUY_ME-COFFEE-blue.svg)](https://buymeacoffee.com/artisticmusician)
 
 ---
 
@@ -31,7 +31,26 @@ A professional, high-performance Windows daemon that intercepts raw HID input fr
 
 ## 🚀 Quick Start
 
-### 1. Build
+### Use a Release File
+
+```
+- The easiest way to get started is to simply Install a release file.
+- EXAMPLE: a1314_daemon_v20260131.exe
+```
+### **INSTALL INSTRUCTIONS**
+```
+1. Place the release file in a folder where it will remain permnently.
+2. Double Click to install.
+3. It will create a file called A1314_mapping.txt
+  - This file is where you edit your mappings.
+  - Once you edit the file I suggest you back it up somewhere 
+  - You can reset the file by right clicking the system tray icon. 
+```
+
+
+
+### 1. Build Your Own Executable
+ - This is not necessary, but you can if you like build your own executable
 ```bash
 cargo build --release
 ```
@@ -69,24 +88,10 @@ Edit `A1314_mapping.txt` and your changes apply **instantly** when you save!
 
 No need to restart the daemon or click reload - just save the file and your new mappings are active.
 
-### Mapping File Format
+### EJECT MAPPING
 
-```text
-# Normal key mapping
-KEY_NAME = ACTION
-
-# Fn-modified key mapping
-FN+KEY_NAME = ACTION
-
-# Shift-modified key mapping
-LEFT_SHIFT+KEY_NAME = ACTION
-RIGHT_SHIFT+KEY_NAME = ACTION
-
-# Eject-modified key mapping
-EJECT+KEY_NAME = ACTION
-
-# Combined modifiers
-EJECT+FN+KEY_NAME = ACTION
+```
+EJECT acts as a modifier key. You can use it to create shortcuts or open programs
 ```
 
 ### Example Mappings
@@ -101,62 +106,47 @@ EJECT+KEY_1 = RUN("calc.exe")
 # Map Fn+Delete to forward delete
 FN+DELETE = DELETE
 
-# Shift+1 produces !
-LEFT_SHIFT+KEY_1 = !
-
 # Launch PowerShell with Eject+Fn+1
 EJECT+FN+KEY_1 = RUN("powershell.exe")
-
-# Use AppCommand for volume (alternative to media keys)
-F10 = APPCOMMAND(8)  # Volume mute
 ```
 
-### Supported Actions
-
-#### Key Combinations
-**Modifiers:** `CTRL`, `SHIFT`, `ALT`, `WIN`
-
-```text
-F3 = WIN+TAB
-F4 = CTRL+SHIFT+ESC
-```
-
-#### Single Keys
-**Function Keys:** `F1` through `F12`  
-**Letters:** `A` through `Z`  
-**Numbers:** `0` through `9`  
-**Special:** `ESC`, `TAB`, `SPACE`, `ENTER`, `BACKSPACE`, `DELETE`
+#### Function Keys
+- Function Keys default to the Media Functions  
+- To use the F1 key you must first press the FN_KEY
+- Example: F1=BRIGHTNESS_DOWN, FN+F1=F1
 
 #### Media Keys
-- `BRIGHTNESS_DOWN`, `BRIGHTNESS_UP`
-- `MEDIA_NEXT`, `MEDIA_PREV`, `MEDIA_PLAY_PAUSE`
-- `MUTE`, `VOLUME_DOWN`, `VOLUME_UP`
+```
+- F1=BRIGHTNESS_DOWN
+- F2=BRIGHTNESS UP
+- F3=WIN+TAB
+- F4=WIN+S
+- F5=WIN+H
+- F6=WIN+A
+- F7=MEDIA_PREVIOUS
+- F8=MEDIA_PLAY_PAUSE
+- F9=MEDIA_NEXT
+- F10=MUTE
+- F11=VOLUME_DOWN
+- F12=VOLUME_UP
+```
 
 #### Navigation
-- `HOME`, `END`, `PAGE_UP`, `PAGE_DOWN`
-- `LEFT_ARROW`, `RIGHT_ARROW`, `UP_ARROW`, `DOWN_ARROW`
-
-#### Symbols (US Layout)
-- `MINUS`, `EQUALS`, `LEFT_BRACKET`, `RIGHT_BRACKET`
-- `SEMICOLON`, `APOSTROPHE`, `GRAVE`, `BACKSLASH`
-- `COMMA`, `PERIOD`, `SLASH`
-
-#### Shifted Symbols
-- `!`, `@`, `#`, `$`, `%`, `^`, `&`, `*`, `(`, `)`
-- `_`, `+`, `{`, `}`, `|`, `:`, `"`, `~`, `<`, `>`, `?`
+```
+- FN+LEFT_ARROW = HOME
+- FN+RIGHT_ARROW = END
+- FN+UP_ARROW = PAGE_UP
+- FN+DOWN_ARROW = PAGE_DOWN
+```
 
 #### Program Launching
+++ It is not required to use **EJECT** Key for Program Launching ++
 ```text
 EJECT+KEY_A = RUN("notepad.exe")
 EJECT+KEY_M = RUN("C:\Program Files\MyApp\app.exe")
 ```
 
-#### App Commands
-```text
-F10 = APPCOMMAND(8)   # Volume Mute
-F11 = APPCOMMAND(9)   # Volume Down
-F12 = APPCOMMAND(10)  # Volume Up
-```
+
 
 **Note:** App commands may not work in all applications.
 
@@ -174,8 +164,6 @@ a1314_daemon.exe --install
 # Uninstall from Windows startup
 a1314_daemon.exe --uninstall
 
-# Show help
-a1314_daemon_v20260131.exe --help
 ```
 
 ---
@@ -262,8 +250,8 @@ When multiple modifiers are pressed, the daemon uses this priority order:
 
 ## ⚠️ Known Limitations
 
-- **HID report parsing** is based on Apple A1314 report descriptor (may need tuning for other models)
-- **Symbol keys** assume US keyboard layout (symbols may differ on other layouts)
+- **HID report parsing** is based on Apple A1314 report descriptor (likely will not work for other models)
+- **US Layout** This was created for US Layout
 - May require **administrator privileges** for raw input capture on some systems
 - The daemon creates an **invisible window** to receive raw input messages
 - **App commands** depend on the foreground application supporting them
@@ -315,43 +303,9 @@ When multiple modifiers are pressed, the daemon uses this priority order:
 
 ---
 
-## 📝 Changelog
-
-### Version 2026.1.31 (Latest)
-- ✨ **Low-level Keyboard Hook**: Implemented native key suppression to solve the "double action" bug (e.g. Backspace+Delete firing together).
-- ✨ **Self-Contained Binary**: Embedded `A1314_mapping.txt` and `RottenApple.ico` into the executable resources for zero-dependency distribution.
-- ✨ **Process Isolation**: Launched programs now use a neutral working directory (`C:\Windows`) to prevent them from locking the daemon's folder.
-- ✨ **Date-Based Versioning**: Moved to a `vYYYYMMDD` naming convention for easy release tracking.
-- ✨ **Feedback Loop Guard**: Implemented `DAEMON_INJECTION_TAG` filtering to stop the daemon from re-processing its own simulated inputs.
-- 🐛 Fixed Eject key detection for Bluetooth connections (vendor report Bit 3).
-- 🐛 Fixed Fn key detection for Bluetooth connections (vendor report Bit 4).
-
-### Version 0.2.0
-
-### Version 0.1.0
-- Initial release
-- Basic key mapping functionality
-- Fn, Shift, and Eject modifier support
-- Program launching capability
-- Configuration file support
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Here are some ways you can help:
-
-- Report bugs and issues
-- Suggest new features
-- Submit pull requests
-- Improve documentation
-- Test on different keyboard models
-
----
-
 ## 📄 License
 
-This project is provided as-is for educational and personal use.
+[See License file](LICENSE.md)
 
 ---
 
@@ -371,10 +325,7 @@ If you encounter issues:
 2. Enable debug logging: `set RUST_LOG=debug`
 3. Review the logs for error messages
 4. Open an issue on GitHub with:
-   - Your Windows version
-   - Keyboard model
-   - Log output (with sensitive info removed)
-   - Steps to reproduce the issue
+- I'm just going to be honest with you, You're likely on your own. I'm busy and really just offering this up to help someone out.
 
 ---
 
@@ -383,13 +334,8 @@ If you encounter issues:
 Future enhancements being considered:
 
 - [ ] Multi-profile support (switch between mapping sets)
-- [ ] GUI configuration editor
-- [ ] Support for additional Apple keyboard models
-- [ ] Macro recording and playback
-- [ ] Per-application key mappings
-- [ ] Cloud sync for configurations
 - [ ] Visual key tester to identify HID codes
 
 ---
 
-**Made with ❤️ for Apple keyboard users on Windows**
+**Made with ❤️ for Apple A1314 Wireless Keyboard users on Windows**

@@ -1,3 +1,4 @@
+#![windows_subsystem = "windows"]
 // --- START OF FILE src/main.rs ---
 mod hid_parser;
 mod key_mapper;
@@ -56,11 +57,13 @@ thread_local! {
 }
 
 fn main() -> windows::core::Result<()> {
-    // Fail-safe startup print
+    // Fail-safe startup print - only in debug builds
+    #[cfg(debug_assertions)]
     println!("--- A1314 Daemon DEBUG START (PID: {}) ---", std::process::id());
 
-    // Initialize logging - Force DEBUG level for troubleshooting
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("debug"))
+    // Initialize logging - Default to INFO for release, DEBUG for dev
+    let default_log_level = if cfg!(debug_assertions) { "debug" } else { "info" };
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or(default_log_level))
         .format_timestamp(Some(env_logger::TimestampPrecision::Millis))
         .init();
 
