@@ -1,7 +1,7 @@
 # --- START OF FILE Cargo.toml ---
 [package]
-name = "a1314_daemon"
-version = "0.2.0"
+name = "a1314_daemon_v20260131"
+version = "2026.1.31"
 edition = "2021"
 
 [dependencies]
@@ -27,3 +27,6 @@ tray-icon = "0.14"
 # Embed the icon file at compile time
 [package.metadata]
 icon = "RottenApple.ico"
+
+[build-dependencies]
+winres = "0.1"

@@ -1,61 +1,53 @@
-# A1314 Daemon
+that's what I wanted that's like Scary this says that cancel <p align="center">
+  <img src="RottenAppleIcon.png" width="200" alt="Rotten Apple Logo">
+</p>
 
-**Apple Wireless Keyboard Mapper for Windows**
+# Rotten Apple A1314 Daemon 
 
-A Windows daemon that intercepts raw HID input from the Apple Wireless Keyboard (A1314) and allows custom key mapping, especially for Fn-key combinations.
+- Developed by Josh McCann
+- Version 2026.1.31
 
-[![Version](https://img.shields.io/badge/version-0.2.0-blue.svg)](https://github.com/yourusername/a1314_daemon)
+**Apple A1314 Wireless Keyboard Mapper for Windows**
+
+A professional, high-performance Windows daemon that intercepts raw HID input from the Apple Wireless Keyboard (A1314) and allows seamless key remapping, including full `Fn` and `Eject` modifier support.
+
+[![Version](https://img.shields.io/badge/version-2026.1.31-blue.svg)](https://github.com/yourusername/a1314_daemon_v20260131)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 ---
 
 ## ✨ Features
 
-- ✅ Captures raw HID input from A1314 keyboard
-- ✅ Supports normal and Fn-modified key mappings
-- ✅ Supports SHIFT and EJECT modifiers
-- ✅ Remap keys to key combinations (e.g., `WIN+TAB`)
-- ✅ Launch programs with keyboard shortcuts
-- ✅ **System tray icon** with easy control
-- ✅ **Hot reload** - config changes apply instantly
-- ✅ **Easy installation** - auto-start with Windows
-- ✅ **Reset to defaults** - one click recovery
-- ✅ Runs as a background daemon
-- ✅ Modular, maintainable architecture
-- ✅ Professional logging with configurable levels
+- ✅ **Native Key Suppression** - Uses a low-level keyboard hook to "swallow" original keys during remapping (stops double-keying)
+- ✅ **Full Modifier Support** - Custom Fn and Eject modifier detection via vendor-specific HID reports
+- ✅ **Self-Contained** - Embedded mapping template and tray icon inside the binary
+- ✅ **Zero-Conflict Launches** - Child processes use isolated working directories (no folder locking)
+- ✅ **System Tray UI** - Premium tray icon with hot-reload and reset controls
+- ✅ **Feedback Loop Prevention** - Advanced tagging to ignore self-injected keystrokes
+- ✅ **Hot reload** - Configuration changes apply the instant you save
+- ✅ **Professional Logging** - Trace-level HID report inspection and error tracking
 
 ---
 
 ## 🚀 Quick Start
 
-### 1. Download and Build
-
+### 1. Build
 ```bash
 cargo build --release
 ```
 
-### 2. Copy Files
+### 2. Deploy
+Copy the self-contained binary to your preferred location:
+- `target\release\a1314_daemon_v20260131.exe`
 
-Copy these files to a permanent location (e.g., `C:\Program Files\A1314Daemon`):
-- `target\release\a1314_daemon.exe`
-- `A1314_mapping.txt` (optional - will be created automatically)
-- `RottenApple.ico` (optional - for system tray icon)
+*Note: The mapping file and icon will be automatically created on first run if missing.*
 
-### 3. Install
-
+### 3. Install & Run
+Run the installer command:
 ```bash
-a1314_daemon.exe --install
+a1314_daemon_v20260131.exe --install
 ```
-
-This adds the daemon to Windows startup. It will run automatically when you log in.
-
-### 4. Run
-
-The daemon starts automatically after installation. You can also run it manually:
-
-```bash
-a1314_daemon.exe
-```
+The daemon will now start automatically every time you log into Windows.
 
 ---
 
@@ -183,7 +175,7 @@ a1314_daemon.exe --install
 a1314_daemon.exe --uninstall
 
 # Show help
-a1314_daemon.exe --help
+a1314_daemon_v20260131.exe --help
 ```
 
 ---
@@ -325,20 +317,16 @@ When multiple modifiers are pressed, the daemon uses this priority order:
 
 ## 📝 Changelog
 
-### Version 0.2.0 (Latest)
-- ✨ Added system tray icon with menu controls
-- ✨ Added automatic hot reload on config file changes
-- ✨ Added reset to defaults functionality
-- ✨ Added Windows startup installation (`--install`/`--uninstall`)
-- ✨ Implemented proper logging framework with levels
-- 🐛 Fixed race condition in global state (poison lock recovery)
-- 🐛 Fixed AppCommand error handling with better messaging
-- 🐛 Eliminated magic numbers with named constants
-- 🐛 Improved error messages with helpful hints
-- 🐛 Simplified file path logic (always next to executable)
-- 🐛 Added configurable key event delays for compatibility
-- 📚 Comprehensive documentation updates
-- 📚 Added thread safety documentation
+### Version 2026.1.31 (Latest)
+- ✨ **Low-level Keyboard Hook**: Implemented native key suppression to solve the "double action" bug (e.g. Backspace+Delete firing together).
+- ✨ **Self-Contained Binary**: Embedded `A1314_mapping.txt` and `RottenApple.ico` into the executable resources for zero-dependency distribution.
+- ✨ **Process Isolation**: Launched programs now use a neutral working directory (`C:\Windows`) to prevent them from locking the daemon's folder.
+- ✨ **Date-Based Versioning**: Moved to a `vYYYYMMDD` naming convention for easy release tracking.
+- ✨ **Feedback Loop Guard**: Implemented `DAEMON_INJECTION_TAG` filtering to stop the daemon from re-processing its own simulated inputs.
+- 🐛 Fixed Eject key detection for Bluetooth connections (vendor report Bit 3).
+- 🐛 Fixed Fn key detection for Bluetooth connections (vendor report Bit 4).
+
+### Version 0.2.0
 
 ### Version 0.1.0
 - Initial release

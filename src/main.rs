@@ -86,7 +86,7 @@ fn main() -> windows::core::Result<()> {
         }
     }
 
-    log::info!("A1314 Daemon v0.2.0 starting...");
+    log::info!("{} v{} starting...", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
     log::info!("Log level: {} (set RUST_LOG environment variable to change)", log::max_level());
 
     // Force initialization of lazy_static maps
@@ -236,17 +236,14 @@ fn handle_file_watch_events(rx: Receiver<()>, hwnd: HWND) {
     }
 }
 
-fn create_system_tray(exe_dir: &std::path::Path) -> Result<(), String> {
-    // Load icon from file
-    let icon_path = exe_dir.join("RottenApple.ico");
-    let icon = if icon_path.exists() {
-        Icon::from_path(&icon_path, Some((32, 32)))
-            .map_err(|e| format!("Failed to load icon: {}", e))?
-    } else {
-        log::warn!("Icon file not found at {}, using default", icon_path.display());
-        Icon::from_rgba(vec![255; 32 * 32 * 4], 32, 32)
-            .map_err(|e| format!("Failed to create default icon: {}", e))?
-    };
+fn create_system_tray(_exe_dir: &std::path::Path) -> Result<(), String> {
+    // Load icon from embedded resources (ordinal 1 is standard for winres)
+    let icon = Icon::from_resource(1, Some((32, 32)))
+        .or_else(|_| {
+            log::warn!("Failed to load icon from resource, using fallback");
+            Icon::from_rgba(vec![255; 32 * 32 * 4], 32, 32)
+        })
+        .map_err(|e| format!("Failed to create icon: {}", e))?;
 
     // Create menu
     let menu = Menu::new();
@@ -635,7 +632,8 @@ fn uninstall_service() -> windows::core::Result<()> {
 }
 
 fn print_help() {
-    println!("A1314 Daemon v0.2.0 - Apple Wireless Keyboard Mapper for Windows");
+    println!("{} v{} - Apple Wireless Keyboard Mapper for Windows", 
+             env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
     println!();
     println!("USAGE:");
     println!("  a1314_daemon.exe [OPTIONS]");
