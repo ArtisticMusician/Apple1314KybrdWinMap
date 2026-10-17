@@ -473,67 +473,105 @@ unsafe fn handle_raw_input(lparam: LPARAM) {
 }
 
 unsafe extern "system" fn keyboard_hook_proc(ncode: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
-    if ncode >= 0 {
-        let kbd = *(lparam.0 as *const KBDLLHOOKSTRUCT);
-        
-        // Skip inputs injected by this daemon to prevent feedback loops
-        if kbd.dwExtraInfo == action_executor::DAEMON_INJECTION_TAG as usize {
-            return CallNextHookEx(None, ncode, wparam, lparam);
-        }
+    if ncode < 0 {
+        return CallNextHookEx(None, ncode, wparam, lparam);
+    }
 
-        let msg = wparam.0 as u32;
-        let is_up = msg == WM_KEYUP || msg == WM_SYSKEYUP;
-        let vk = kbd.vkCode;
-        
-        // Translate VK to HID Usage (Usage Page 0x07)
-        let usage = match vk {
-            0x41..=0x5A => vk as u16 - 0x41 + 4, // A-Z (0x41='A' -> Usage 0x04)
-            0x30 => 0x27, // '0' -> Usage 0x27
-            0x31..=0x39 => vk as u16 - 0x31 + 0x1E, // 1-9 (0x31='1' -> Usage 0x1E)
-            0x0D => 0x28, // ENTER -> Usage 0x28
-            0x1B => 0x29, // ESCAPE -> Usage 0x29
-            0x08 => 0x2A, // BACKSPACE -> Usage 0x2A
-            0x09 => 0x2B, // TAB -> Usage 0x2B
-            0x20 => 0x2C, // SPACE -> Usage 0x2C
-            0x25 => 0x50, // LEFT -> Usage 0x50
-            0x26 => 0x52, // UP -> Usage 0x52
-            0x27 => 0x4F, // RIGHT -> Usage 0x4F
-            0x28 => 0x51, // DOWN -> Usage 0x51
-            0x2E => 0x4C, // DELETE -> Usage 0x4C (Forward Delete)
-            0x70..=0x7B => vk as u16 - 0x70 + 0x3A, // F1-F12 (0x70=F1 -> Usage 0x3A)
-            _ => 0,
-        };
-
-        if usage != 0 {
-            let mut should_suppress = false;
-            GLOBAL_MAPPER.with(|gm| {
-                if let Some(mapper_rc) = &*gm.borrow() {
-                    let mut mapper = mapper_rc.borrow_mut();
-                    
-                    if !is_up {
-                        // Check for mapping and trigger it
-                        if mapper.try_trigger_mapping(0x07, usage, 1) {
-                            SUPPRESSED_KEYS.with(|sk| sk.borrow_mut().insert(vk));
-                            should_suppress = true;
-                        }
-                    } else {
-                        // If it's an UP event, check if we suppressed the corresponding DOWN
-                        let was_suppressed = SUPPRESSED_KEYS.with(|sk| sk.borrow_mut().remove(&vk));
-                        if was_suppressed {
-                            should_suppress = true;
-                        }
-                        // Always update state for modifiers etc.
-                        mapper.handle_hid_event(0x07, usage, 0);
-                    }
-                }
-            });
-
-            if should_suppress {
-                return LRESULT(1); // Suppress the physical key event
-            }
+    // A panic must never unwind out of a hook callback: unwinding across the FFI boundary aborts
+    // the process, which the user sees as the daemon closing in the middle of a keypress. Anything
+    // that goes wrong here is logged, and the key is passed through untouched.
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        unsafe { handle_hook_key(wparam, lparam) }
+    })) {
+        Ok(LRESULT(1)) => LRESULT(1),
+        Ok(_) => CallNextHookEx(None, ncode, wparam, lparam),
+        Err(_) => {
+            log::error!("keyboard hook panicked; passing the key through untouched");
+            CallNextHookEx(None, ncode, wparam, lparam)
         }
     }
-    CallNextHookEx(None, ncode, wparam, lparam)
+}
+
+/// The body of the hook: resolve the key, run its mapping, and report whether to suppress it.
+unsafe fn handle_hook_key(wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+    let kbd = *(lparam.0 as *const KBDLLHOOKSTRUCT);
+
+    // Skip inputs injected by this daemon to prevent feedback loops
+    if kbd.dwExtraInfo == action_executor::DAEMON_INJECTION_TAG as usize {
+        return LRESULT(0);
+    }
+
+    let msg = wparam.0 as u32;
+    let is_up = msg == WM_KEYUP || msg == WM_SYSKEYUP;
+    let vk = kbd.vkCode;
+
+    // The hook sees Shift as an ordinary key, while Fn and Eject only exist in Apple's HID
+    // reports. Feed the hook's own Shift events into the same state the raw-input path maintains,
+    // so both paths resolve a keypress the same way instead of one of them acting on stale state.
+    let shift_usage = match vk {
+        0xA0 | 0x10 => Some(0xE1u16), // left Shift (or unspecified)
+        0xA1 => Some(0xE5),           // right Shift
+        _ => None,
+    };
+    if let Some(usage) = shift_usage {
+        GLOBAL_MAPPER.with(|gm| {
+            if let Some(mapper_rc) = &*gm.borrow() {
+                mapper_rc
+                    .borrow_mut()
+                    .handle_hid_event(0x07, usage, if is_up { 0 } else { 1 });
+            }
+        });
+    }
+
+    // Translate VK to HID Usage (Usage Page 0x07)
+    let usage = match vk {
+        0x41..=0x5A => vk as u16 - 0x41 + 4, // A-Z (0x41='A' -> Usage 0x04)
+        0x30 => 0x27, // '0' -> Usage 0x27
+        0x31..=0x39 => vk as u16 - 0x31 + 0x1E, // 1-9 (0x31='1' -> Usage 0x1E)
+        0x0D => 0x28, // ENTER -> Usage 0x28
+        0x1B => 0x29, // ESCAPE -> Usage 0x29
+        0x08 => 0x2A, // BACKSPACE -> Usage 0x2A
+        0x09 => 0x2B, // TAB -> Usage 0x2B
+        0x20 => 0x2C, // SPACE -> Usage 0x2C
+        0x25 => 0x50, // LEFT -> Usage 0x50
+        0x26 => 0x52, // UP -> Usage 0x52
+        0x27 => 0x4F, // RIGHT -> Usage 0x4F
+        0x28 => 0x51, // DOWN -> Usage 0x51
+        0x2E => 0x4C, // DELETE -> Usage 0x4C (Forward Delete)
+        0x70..=0x7B => vk as u16 - 0x70 + 0x3A, // F1-F12 (0x70=F1 -> Usage 0x3A)
+        _ => 0,
+    };
+
+    if usage != 0 {
+        let mut should_suppress = false;
+        GLOBAL_MAPPER.with(|gm| {
+            if let Some(mapper_rc) = &*gm.borrow() {
+                let mut mapper = mapper_rc.borrow_mut();
+
+                if !is_up {
+                    // Check for mapping and trigger it
+                    if mapper.try_trigger_mapping(0x07, usage, 1) {
+                        SUPPRESSED_KEYS.with(|sk| sk.borrow_mut().insert(vk));
+                        should_suppress = true;
+                    }
+                } else {
+                    // If it's an UP event, check if we suppressed the corresponding DOWN
+                    let was_suppressed = SUPPRESSED_KEYS.with(|sk| sk.borrow_mut().remove(&vk));
+                    if was_suppressed {
+                        should_suppress = true;
+                    }
+                    // Always update state for modifiers etc.
+                    mapper.handle_hid_event(0x07, usage, 0);
+                }
+            }
+        });
+
+        if should_suppress {
+            return LRESULT(1); // Suppress the physical key event
+        }
+    }
+
+    LRESULT(0)
 }
 
 fn install_service() -> windows::core::Result<()> {

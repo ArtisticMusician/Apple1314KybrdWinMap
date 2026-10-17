@@ -29,10 +29,10 @@ pub enum Action {
     AppCommand(u32), // Variant for APPCOMMANDs
 }
 
-pub fn execute_action(action: &Action) {
+pub fn execute_action(action: &Action, held_shift: bool) {
     match action {
         Action::KeyCombo(combo) => {
-            send_key_combo(combo);
+            send_key_combo(combo, held_shift);
         }
         Action::Run(path) => {
             launch_program(path);
@@ -43,7 +43,7 @@ pub fn execute_action(action: &Action) {
     }
 }
 
-fn send_key_combo(combo: &str) {
+fn send_key_combo(combo: &str, held_shift: bool) {
     let parts: Vec<&str> = combo.split('+').map(|s| s.trim()).collect();
     
     let mut modifiers = Vec::new();
@@ -57,6 +57,14 @@ fn send_key_combo(combo: &str) {
             "WIN" | "GUI" => modifiers.push(VK_LWIN),
             key => main_key = Some(parse_key(key)),
         }
+    }
+
+    // A modifier the user is physically holding belongs to the keypress, not to the mapping:
+    // Fn+Shift+Backspace (mapped to DELETE) has to leave as Shift+Delete, or Explorer sends the
+    // file to the recycle bin instead of deleting it. Only added when the mapping does not
+    // already ask for it, so "SHIFT+DELETE" stays exactly one Shift.
+    if held_shift && !modifiers.contains(&VK_SHIFT) {
+        modifiers.insert(0, VK_SHIFT);
     }
 
     unsafe {
@@ -80,10 +88,10 @@ fn send_key_combo(combo: &str) {
             }
         }
 
-        // Release modifiers (in reverse order)
-        for &modifier in modifiers.iter().rev() {
+        // Release modifiers (in reverse order), with a pause after each but the last
+        for (index, &modifier) in modifiers.iter().rev().enumerate() {
             send_key(modifier, true);
-            if KEY_EVENT_DELAY_MS > 0 && modifier != *modifiers.last().unwrap() {
+            if KEY_EVENT_DELAY_MS > 0 && index + 1 < modifiers.len() {
                 std::thread::sleep(Duration::from_millis(KEY_EVENT_DELAY_MS));
             }
         }

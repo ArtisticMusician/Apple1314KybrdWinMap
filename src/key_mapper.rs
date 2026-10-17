@@ -198,6 +198,42 @@ impl KeyMapper {
         }
     }
 
+    /// The one place that decides which mapping a key resolves to, given the modifier state.
+    ///
+    /// Specific first, then the less specific reading of the same keypress: a key pressed with
+    /// Fn *and* Shift resolves through the Shift map, but falls back to the Fn map rather than
+    /// dropping to no mapping at all. That fallback is the difference between "Fn+Shift+Backspace
+    /// does what Fn+Backspace does, with Shift held" and "the key does nothing and the physical
+    /// key leaks through as a plain Backspace".
+    pub fn resolve(&self, key: HidKey) -> Option<&Action> {
+        if self.eject_down && self.fn_down {
+            if let Some(action) = self.maps.eject_fn_map.get(&key) {
+                return Some(action);
+            }
+        }
+        if self.eject_down {
+            if let Some(action) = self.maps.eject_map.get(&key) {
+                return Some(action);
+            }
+        }
+        if self.shift_down {
+            if let Some(action) = self.maps.shift_map.get(&key) {
+                return Some(action);
+            }
+        }
+        if self.fn_down {
+            if let Some(action) = self.maps.fn_map.get(&key) {
+                return Some(action);
+            }
+        }
+        if self.shift_down {
+            if let Some(action) = self.maps.shift_map.get(&key) {
+                return Some(action);
+            }
+        }
+        self.maps.normal.get(&key)
+    }
+
     pub fn handle_hid_event(&mut self, usage_page: u16, usage: u16, value: i32) {
         let key = HidKey { usage_page, usage };
 
@@ -227,24 +263,10 @@ impl KeyMapper {
             return;
         }
 
-        // Determine which map to use based on modifier states
-        // Priority: EJECT+FN > EJECT > SHIFT > FN > NORMAL
-        let action = if self.eject_down && self.fn_down {
-            self.maps.eject_fn_map.get(&key)
-        } else if self.eject_down {
-            self.maps.eject_map.get(&key)
-        } else if self.shift_down {
-            self.maps.shift_map.get(&key)
-        } else if self.fn_down {
-            self.maps.fn_map.get(&key)
-        } else {
-            self.maps.normal.get(&key)
-        };
-
-        if let Some(action) = action {
+        if let Some(action) = self.resolve(key) {
             log::debug!("Executing action for key {:04X}:{:04X} (modifiers: Fn={}, Shift={}, Eject={}): {:?}",
                        usage_page, usage, self.fn_down, self.shift_down, self.eject_down, action);
-            execute_action(action);
+            execute_action(action, self.shift_down);
         }
     }
 
@@ -256,25 +278,119 @@ impl KeyMapper {
 
         let key = HidKey { usage_page, usage };
 
-        // Determine map based on current modifiers
-        let action = if self.eject_down && self.fn_down {
-            self.maps.eject_fn_map.get(&key)
-        } else if self.eject_down {
-            self.maps.eject_map.get(&key)
-        } else if self.shift_down {
-            self.maps.shift_map.get(&key)
-        } else if self.fn_down {
-            self.maps.fn_map.get(&key)
-        } else {
-            self.maps.normal.get(&key)
-        };
-
-        if let Some(action) = action {
+        if let Some(action) = self.resolve(key) {
             log::debug!("Triggered mapping for {:04X}:{:04X}, suppressing original", usage_page, usage);
-            execute_action(action);
+            execute_action(action, self.shift_down);
             true
         } else {
             false
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // The shadowing the reporter uses, plus one entry in each other map so the priority rules are
+    // covered. Note the Shift prefix: the parser only recognises LEFT_SHIFT+/RIGHT_SHIFT+.
+    const MAPPINGS: &str = "\
+KEY_C = KEY_D
+FN+BACKSPACE = DELETE
+LEFT_SHIFT+KEY_A = KEY_B
+EJECT+KEY_1 = RUN(\"calc.exe\")
+EJECT+FN+KEY_1 = RUN(\"notepad.exe\")
+";
+
+    const BACKSPACE: HidKey = HidKey { usage_page: 0x07, usage: 0x2A };
+    const KEY_A: HidKey = HidKey { usage_page: 0x07, usage: 0x04 };
+    const KEY_1: HidKey = HidKey { usage_page: 0x07, usage: 0x1E };
+    const KEY_C: HidKey = HidKey { usage_page: 0x07, usage: 0x06 };
+
+    const FN_STATE: (u16, u16) = (0xFF00, 0x0003);
+    const LEFT_SHIFT: (u16, u16) = (0x07, 0xE1);
+    const EJECT: (u16, u16) = (0x0C, 0x00B8);
+
+    fn mapper_with_mappings() -> KeyMapper {
+        let path = std::env::temp_dir().join(format!(
+            "a1314_test_mappings_{}_{:?}.txt",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        std::fs::write(&path, MAPPINGS).expect("write test mappings");
+        let mut mapper = KeyMapper::new();
+        mapper.load_mapping_file(&path);
+        let _ = std::fs::remove_file(&path);
+        mapper
+    }
+
+    fn combo(action: Option<&Action>) -> Option<String> {
+        match action {
+            Some(Action::KeyCombo(combo)) => Some(combo.clone()),
+            Some(Action::Run(path)) => Some(format!("RUN({path})")),
+            Some(Action::AppCommand(cmd)) => Some(format!("APPCOMMAND({cmd})")),
+            None => None,
+        }
+    }
+
+    fn press(mapper: &mut KeyMapper, key: (u16, u16)) {
+        mapper.handle_hid_event(key.0, key.1, 1);
+    }
+
+    fn release(mapper: &mut KeyMapper, key: (u16, u16)) {
+        mapper.handle_hid_event(key.0, key.1, 0);
+    }
+
+    /// The reported case: Fn+Shift+Backspace, where the Shift map has no entry for Backspace.
+    /// Before the fix this resolved to nothing, so the daemon never suppressed the key and the
+    /// physical Backspace leaked through to Explorer.
+    #[test]
+    fn shift_falls_back_to_the_fn_mapping() {
+        let mut mapper = mapper_with_mappings();
+        press(&mut mapper, FN_STATE);
+        press(&mut mapper, LEFT_SHIFT);
+        assert_eq!(combo(mapper.resolve(BACKSPACE)), Some("DELETE".to_string()));
+    }
+
+    #[test]
+    fn fn_mapping_still_applies_without_shift() {
+        let mut mapper = mapper_with_mappings();
+        press(&mut mapper, FN_STATE);
+        assert_eq!(combo(mapper.resolve(BACKSPACE)), Some("DELETE".to_string()));
+    }
+
+    #[test]
+    fn a_shift_mapping_wins_over_the_fn_mapping() {
+        let mut mapper = mapper_with_mappings();
+        press(&mut mapper, FN_STATE);
+        press(&mut mapper, LEFT_SHIFT);
+        assert_eq!(combo(mapper.resolve(KEY_A)), Some("KEY_B".to_string()));
+    }
+
+    #[test]
+    fn eject_and_fn_is_more_specific_than_eject() {
+        let mut mapper = mapper_with_mappings();
+        press(&mut mapper, EJECT);
+        assert_eq!(combo(mapper.resolve(KEY_1)), Some("RUN(calc.exe)".to_string()));
+        press(&mut mapper, FN_STATE);
+        assert_eq!(combo(mapper.resolve(KEY_1)), Some("RUN(notepad.exe)".to_string()));
+    }
+
+    #[test]
+    fn plain_mapping_applies_with_no_modifiers() {
+        let mapper = mapper_with_mappings();
+        assert_eq!(combo(mapper.resolve(KEY_C)), Some("KEY_D".to_string()));
+    }
+
+    #[test]
+    fn releasing_shift_returns_the_key_to_its_normal_mapping() {
+        let mut mapper = mapper_with_mappings();
+        press(&mut mapper, FN_STATE);
+        press(&mut mapper, LEFT_SHIFT);
+        release(&mut mapper, LEFT_SHIFT);
+        // No normal mapping for Backspace, and Fn is still down: the Fn map applies.
+        assert_eq!(combo(mapper.resolve(BACKSPACE)), Some("DELETE".to_string()));
+        release(&mut mapper, FN_STATE);
+        assert_eq!(combo(mapper.resolve(BACKSPACE)), None);
     }
 }
